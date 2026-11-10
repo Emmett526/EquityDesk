@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>__TITLE__</title>
+<style>
+:root{--bg:#f2f5f9;--card:#fff;--ink:#0f1f33;--mut:#5b6b7e;--line:#dbe3ec;--navy:#0f2a47;--navy2:#16385d;--acc:#1f6f8b;--up:#0b7a53;--dn:#b3261e;--warn:#9a5b00;--warnbg:#fff1d6;--chip:#e9eff6}
+:root[data-theme=dark]{--bg:#0b1118;--card:#121b26;--ink:#e6edf5;--mut:#93a4b8;--line:#243243;--navy:#0a1522;--navy2:#13243a;--acc:#5bb5d1;--up:#3ddc97;--dn:#ff7b72;--warn:#ffcc66;--warnbg:#3a2d10;--chip:#1a2837}
+:root[data-theme=term]{--bg:#000;--card:#070707;--ink:#f2f2f2;--mut:#ff9e1b;--line:#2a2a2a;--navy:#000;--navy2:#000;--acc:#ffb84d;--up:#00d26a;--dn:#ff3b3b;--warn:#ffd400;--warnbg:#2a2200;--chip:#141414}
+:root[data-theme=term] body{font-family:Consolas,"Lucida Console","Courier New",monospace;font-size:13px}
+:root[data-theme=term] header{border-bottom:2px solid #ff9e1b}:root[data-theme=term] header h1{color:#ff9e1b;text-transform:uppercase;letter-spacing:1px}
+:root[data-theme=term] .card,:root[data-theme=term] .stat div,:root[data-theme=term] .res,:root[data-theme=term] dialog,:root[data-theme=term] .btn,:root[data-theme=term] .pill,:root[data-theme=term] .g{border-radius:0}
+:root[data-theme=term] .card h3,:root[data-theme=term] th{color:#ff9e1b}:root[data-theme=term] nav button{text-transform:uppercase}:root[data-theme=term] .dh{border-bottom:2px solid #ff9e1b}
+*{box-sizing:border-box}body{margin:0;font:14px/1.45 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:linear-gradient(90deg,var(--navy),var(--navy2));color:#fff;padding:14px 24px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+header h1{font-size:18px;margin:0;letter-spacing:.3px}header small{opacity:.75}.sp{flex:1}
+button,select,input{font:inherit}.btn{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:6px 12px;cursor:pointer}.btn:hover{background:rgba(255,255,255,.22)}
+.banner{background:var(--warnbg);color:var(--warn);font-weight:700;padding:8px 24px;font-size:12px;letter-spacing:.6px}
+nav{display:flex;gap:4px;padding:0 24px;background:var(--card);border-bottom:1px solid var(--line);overflow:auto}
+nav button{background:none;border:0;padding:12px 14px;cursor:pointer;color:var(--mut);border-bottom:3px solid transparent;font-weight:600;white-space:nowrap}
+nav button.on{color:var(--ink);border-color:var(--acc)}
+main{max-width:1200px;margin:0 auto;padding:20px 24px 60px}.tab{display:none}.tab.on{display:block}
+.grid{display:grid;gap:14px}.g3{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}.g2{grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}
+.card h3{margin:0 0 10px;font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.8px}
+.kpi b{font-size:22px;display:block}.up{color:var(--up)}.dn{color:var(--dn)}.mut{color:var(--mut)}
+.gate{border-left:6px solid var(--acc);display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.gate.BLOCK{border-color:var(--dn)}.gate.REDUCE{border-color:#d98b00}.gate.ALLOW{border-color:var(--up)}
+.pill{display:inline-block;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700;background:var(--chip)}
+.pill.BLOCK{background:var(--dn);color:#fff}.pill.REDUCE{background:#d98b00;color:#fff}.pill.ALLOW{background:var(--up);color:#fff}
+table{width:100%;border-collapse:collapse}th,td{padding:10px 8px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--mut);cursor:pointer;user-select:none}tbody tr{cursor:pointer}tbody tr:hover{background:var(--chip)}
+.tw{overflow:auto}.g{display:inline-block;width:26px;height:26px;line-height:26px;text-align:center;border-radius:6px;font-weight:800;color:#fff}
+.gA{background:var(--up)}.gB{background:#d98b00}.gC{background:var(--dn)}.gNR{background:var(--mut)}
+.toolbar{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.toolbar select,.toolbar input,.calc input{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px 10px}
+dialog{border:0;border-radius:14px;padding:0;width:min(780px,94vw);background:var(--card);color:var(--ink);box-shadow:0 20px 60px rgba(0,0,0,.4)}
+dialog::backdrop{background:rgba(5,12,20,.6)}.dh{background:linear-gradient(90deg,var(--navy),var(--navy2));color:#fff;padding:16px 20px;display:flex;gap:12px;align-items:center}
+.dh h2{margin:0;font-size:18px}.x{margin-left:auto;background:none;border:0;color:#fff;font-size:22px;cursor:pointer}.db{padding:18px 20px;max-height:76vh;overflow:auto}
+.bar{height:10px;border-radius:5px;background:var(--chip);overflow:hidden;display:flex}.bar i{display:block;height:100%}
+ul.t{margin:6px 0 0;padding-left:18px}.stat{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin:14px 0}.stat div{background:var(--chip);border-radius:8px;padding:10px}.stat b{display:block;font-size:17px}
+.calc label{display:block;font-size:12px;color:var(--mut);margin:8px 0 3px}.calc{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;align-items:end}
+.res{background:var(--chip);border-radius:8px;padding:10px;margin-top:10px}
+footer{color:var(--mut);font-size:12px;margin-top:24px;border-top:1px solid var(--line);padding-top:12px}
+a{color:var(--acc)}.note{color:var(--warn);font-weight:600}
+@media print{nav,.btn,dialog{display:none!important}.tab{display:block!important;break-inside:avoid}}
+</style></head><body>
+<header><div><h1 id="ttl"></h1><small id="sub"></small></div><span class="sp"></span><button class="btn" id="th">Theme</button><button class="btn" onclick="window.print()">Print / PDF</button></header>
+<nav id="nav"></nav>
+<main>
+<section class="tab on" id="t-over"></section>
+<section class="tab" id="t-ideas"></section>
+<section class="tab" id="t-risk"></section>
+<section class="tab" id="t-score"></section>
+<section class="tab" id="t-src"></section>
+<footer>Research, not personalised financial advice; you make your own decisions. Grades are rule-based (reward:risk, simulated expected points, probability of a -1) and are not forecasts. Simulations show the shape of risk given their inputs; they do not discover edge. Items marked ESTIMATE use assumed inputs. Past results do not predict future returns.</footer>
+</main>
+<dialog id="dlg"></dialog>
+<script id="data" type="application/json">/*__DATA__*/</script>
+<script>
+const D=JSON.parse(document.getElementById('data').textContent);
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const safeUrl=u=>/^https?:\/\//.test(u)?esc(u):'#';
+const f2=n=>Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+const pc=n=>(n>0?'+':'')+Number(n).toFixed(2)+'%';
+const cls=n=>n>0?'up':n<0?'dn':'mut';
+if(D.theme)document.documentElement.dataset.theme=D.theme;try{const t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t}catch(e){}
+$('#th').onclick=()=>{const r=document.documentElement,n={light:'dark',dark:'term'}[r.dataset.theme]||'light';r.dataset.theme=n;try{localStorage.setItem('theme',n)}catch(e){}};
+$('#ttl').textContent=D.title||'Equity Research Desk';
+$('#sub').textContent=(D.analyst||'Prepared for you')+' · '+(D.illustrative?'Demo data · ':'')+'Data as of '+D.as_of+' · Generated '+D.generated;
+const tabs=[['over','Overview'],['ideas','Trade ideas'],['risk','Risk & sizing'],['score','Scorecard'],['src','Sources']];
+$('#nav').innerHTML=tabs.map((t,i)=>`<button data-t="${t[0]}" class="${i?'':'on'}">${t[1]}</button>`).join('');
+$('#nav').onclick=e=>{const b=e.target.closest('button');if(!b)return;document.querySelectorAll('nav button,.tab').forEach(x=>x.classList.remove('on'));b.classList.add('on');$('#t-'+b.dataset.t).classList.add('on')};
+const G=D.gate,P=D.picks;
+// Overview
+$('#t-over').innerHTML=`
+<div class="card gate ${esc(G.state)}"><div><span class="pill ${esc(G.state)}">RISK GATE: ${esc(G.state)}</span> <span class="pill">Posture: ${esc(G.posture||'n/a')}</span> ${G.vix?`<span class="pill">VIX ${esc(G.vix)}</span>`:''}</div>
+<div style="flex:1;min-width:240px"><b>${esc(G.rule||'')}</b><ul class="t">${(G.reasons||[]).map(r=>`<li>${esc(r)}</li>`).join('')}</ul></div></div>
+<p style="margin:16px 0"><b>Stance.</b> ${esc(D.stance||'')}</p>
+<div class="grid g3">${(D.market||[]).map(m=>`<div class="card kpi"><h3>${esc(m.name)}</h3><b>${esc(m.value)}</b><span class="${cls(m.chg)}">${pc(m.chg)}</span></div>`).join('')}</div>
+<div class="grid g3" style="margin-top:14px">
+<div class="card kpi"><h3>Ideas passing the gate</h3><b>${P.filter(p=>p.actionable).length} / ${P.length}</b><span class="mut">grade A or B and gate permits</span></div>
+<div class="card kpi"><h3>Month score</h3><b>${D.scorecard.points} / ${D.scorecard.goal}</b><span class="mut">${D.scorecard.month}</span></div>
+<div class="card kpi"><h3>Distribution days</h3><b>${esc((D.distribution||{}).risk||'n/a')}</b><span class="mut">SPY/QQQ, IBD-style count</span></div></div>`;
+// Ideas
+$('#t-ideas').innerHTML=`<div class="toolbar"><select id="fb"><option value="">All books</option><option value="short">Short term</option><option value="long">Long term</option></select>
+<select id="fg"><option value="">All grades</option><option>A</option><option>B</option><option>C</option></select><label><input type="checkbox" id="fa"> Actionable only</label><input id="fs" placeholder="Search ticker"><span class="mut">Click a row for the full note</span></div>
+<div class="card tw"><table><thead><tr><th data-k="ticker">Ticker</th><th data-k="side">Side</th><th data-k="book">Book</th><th data-k="entry">Entry</th><th data-k="target">Target</th><th data-k="stop">Stop</th><th data-k="rr">R:R</th><th data-k="exp">Exp pts</th><th data-k="pm">P(-1)</th><th data-k="grade">Grade</th><th>Status</th></tr></thead><tbody id="tb"></tbody></table></div>`;
+let sk='grade',sd=1;
+const val=(p,k)=>k==='exp'?(p.sim||{}).expected_points:k==='pm'?(p.sim||{}).p_minus1:p[k];
+function draw(){const b=$('#fb').value,g=$('#fg').value,a=$('#fa').checked,q=$('#fs').value.toUpperCase();
+ let r=P.map((p,i)=>[p,i]).filter(([p])=>(!b||p.book===b)&&(!g||p.grade===g)&&(!a||p.actionable)&&(!q||p.ticker.includes(q)));
+ r.sort((x,y)=>{const A=val(x[0],sk),B=val(y[0],sk);return (A>B?1:A<B?-1:0)*sd});
+ $('#tb').innerHTML=r.map(([p,i])=>`<tr data-i="${i}"><td><b>${esc(p.ticker)}</b> <span class="mut">${esc(p.type==='shares'?'':p.type.replace('_',' '))}</span></td><td class="${p.side==='buy'?'up':'dn'}">${p.side.toUpperCase()}</td><td>${esc(p.book)} · ${esc(p.horizon)}</td><td>${f2(p.entry)}</td><td>${f2(p.target)} <span class="${cls(p.pct_target)}">${pc(p.pct_target)}</span></td><td>${f2(p.stop)} <span class="${cls(p.pct_stop)}">${pc(p.pct_stop)}</span></td><td><b>${p.rr.toFixed(2)}</b></td><td class="${cls((p.sim||{}).expected_points)}">${p.sim?p.sim.expected_points.toFixed(2):'n/a'}</td><td>${p.sim?Math.round(p.sim.p_minus1*100)+'%':'n/a'}</td><td><span class="g g${p.grade}">${p.grade}</span></td><td>${p.actionable?'<span class="pill ALLOW">Actionable</span>':'<span class="pill">Watch</span>'}</td></tr>`).join('')||'<tr><td colspan="11" class="mut">No ideas match</td></tr>'}
+['fb','fg','fa','fs'].forEach(i=>$('#'+i).addEventListener('input',draw));
+$('#t-ideas thead').onclick=e=>{const k=e.target.dataset.k;if(!k)return;sd=sk===k?-sd:1;sk=k;draw()};
+$('#tb').onclick=e=>{const tr=e.target.closest('tr');if(tr&&tr.dataset.i!=null)openPick(+tr.dataset.i)};
+draw();
+// Ladder
+function ladder(p){const v=[p.stop,p.entry,p.target],lo=Math.min(...v),hi=Math.max(...v),pad=(hi-lo)*.12,L=lo-pad,H=hi+pad,x=n=>40+(n-L)/(H-L)*620;
+ const m=(n,l,c)=>`<line x1="${x(n)}" x2="${x(n)}" y1="26" y2="58" stroke="${c}" stroke-width="3"/><text x="${x(n)}" y="18" text-anchor="middle" font-size="11" fill="${c}" font-weight="700">${l}</text><text x="${x(n)}" y="76" text-anchor="middle" font-size="11" fill="currentColor">${f2(n)}</text>`;
+ const a=Math.min(x(p.stop),x(p.target)),b=Math.max(x(p.stop),x(p.target)),e=x(p.entry);
+ const win=p.side==='buy'?[e,x(p.target)]:[x(p.target),e],los=p.side==='buy'?[x(p.stop),e]:[e,x(p.stop)];
+ return `<svg viewBox="0 0 700 90" width="100%" role="img" aria-label="Stop, entry and target"><rect x="${los[0]}" y="38" width="${Math.abs(los[1]-los[0])}" height="12" fill="var(--dn)" opacity=".35"/><rect x="${win[0]}" y="38" width="${Math.abs(win[1]-win[0])}" height="12" fill="var(--up)" opacity=".35"/>${m(p.stop,'STOP','var(--dn)')}${m(p.entry,'ENTRY','var(--acc)')}${m(p.target,'TARGET','var(--up)')}</svg>`}
+function openPick(i){const p=P[i],s=p.sim||{};
+ const pb=s.p_plus1!=null?`<div class="bar" title="Blended simulation outcomes"><i style="width:${s.p_plus1*100}%;background:var(--up)"></i><i style="width:${(s.p_zero||0)*100}%;background:var(--mut)"></i><i style="width:${s.p_minus1*100}%;background:var(--dn)"></i></div><div class="mut" style="font-size:12px;margin-top:4px">+1: ${Math.round(s.p_plus1*100)}% · 0: ${Math.round((s.p_zero||0)*100)}% · -1: ${Math.round(s.p_minus1*100)}%</div>`:'';
+ $('#dlg').innerHTML=`<div class="dh"><span class="g g${p.grade}">${p.grade}</span><div><h2>${esc(p.ticker)} · ${p.side.toUpperCase()} <span style="font-weight:400;opacity:.8">${esc(p.name||'')}</span></h2><small>${esc(p.book)} book · ${esc(p.horizon)}${p.contract?' · '+esc(p.contract):''}</small></div><button class="x" aria-label="Close" onclick="$('#dlg').close()">×</button></div>
+ <div class="db">${p.actionable?'<span class="pill ALLOW">Actionable under current gate</span>':`<span class="pill REDUCE">Not actionable</span> <span class="note">${esc(p.note||'')}</span>`}
+ <div style="margin-top:10px">${ladder(p)}</div>
+ <div class="stat"><div>Reward:Risk<b>${p.rr.toFixed(2)}</b></div><div>To target<b class="${cls(p.pct_target)}">${pc(p.pct_target)}</b></div><div>To stop<b class="${cls(p.pct_stop)}">${pc(p.pct_stop)}</b></div><div>Exp points<b>${s.expected_points!=null?s.expected_points.toFixed(2):'n/a'}</b></div><div>P(target before stop)<b>${s.p_target_before_stop!=null?Math.round(s.p_target_before_stop*100)+'%':'n/a'}</b></div><div>CVaR 5%<b>${s.cvar5!=null?(s.cvar5*100).toFixed(1)+'%':'n/a'}</b></div></div>
+ ${pb}<h3 style="margin:16px 0 4px">Thesis</h3><div>${esc(p.thesis)}</div>
+ <div class="grid g2" style="margin-top:12px"><div><b>Catalysts</b><ul class="t">${(p.catalysts||[]).map(c=>`<li>${esc(c)}</li>`).join('')||'<li class="mut">none listed</li>'}</ul></div><div><b>Key risks</b><ul class="t">${(p.risks||[]).map(c=>`<li>${esc(c)}</li>`).join('')||'<li class="mut">none listed</li>'}</ul></div></div>
+ ${(p.estimates||[]).length?`<p class="note">ESTIMATE: ${(p.estimates).map(esc).join('; ')}</p>`:''}
+ <h3 style="margin:16px 0 6px">Position size (your inputs)</h3><div class="calc"><div><label>Account equity</label><input id="ca" type="number" value="${D.account_default||100000}" min="0"></div><div><label>Risk per idea %</label><input id="cr" type="number" step="0.1" value="${D.risk_pct||1}"></div><div><label>Max position %</label><input id="cm" type="number" step="1" value="${D.max_position_pct||10}"></div></div><div class="res" id="cres"></div>
+ <p class="mut" style="font-size:12px">Sources: ${(p.sources||[]).map(s=>`<a href="${safeUrl(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.title)}</a>`).join(' · ')||'n/a'}</p></div>`;
+ const calc=()=>{const A=+$('#ca').value,R=+$('#cr').value/100,M=+$('#cm').value/100,budget=A*R;let t;
+  if(p.type!=='shares'&&p.debit){const c=Math.floor(budget/(p.debit*100));t=`Contracts: <b>${c}</b> · max loss $${f2(c*p.debit*100)} (the debit) · risk budget $${f2(budget)}`}
+  else{const per=Math.abs(p.entry-p.stop),byRisk=Math.floor(budget/per),byCap=Math.floor(A*M/p.entry),n=Math.min(byRisk,byCap),G2=G.state==='REDUCE'?Math.floor(n/2):n;
+   t=`Shares: <b>${G2}</b>${G.state==='REDUCE'?' (half size, gate REDUCE)':''} · cost $${f2(G2*p.entry)} · loss at stop $${f2(G2*per)} · gain at target $${f2(G2*Math.abs(p.target-p.entry))}<br><span class="mut">Binding limit: ${byRisk<=byCap?'risk budget':'position cap'} (risk allows ${byRisk}, cap allows ${byCap})</span>`}
+  $('#cres').innerHTML=t};
+ ['ca','cr','cm'].forEach(id=>$('#'+id).addEventListener('input',calc));calc();$('#dlg').showModal()}
+$('#dlg').addEventListener('click',e=>{if(e.target===$('#dlg'))$('#dlg').close()});
+// Risk
+const d=D.distribution||{};
+$('#t-risk').innerHTML=`<div class="grid g2"><div class="card"><h3>Risk gate</h3><span class="pill ${esc(G.state)}">${esc(G.state)}</span><ul class="t">${(G.reasons||[]).map(r=>`<li>${esc(r)}</li>`).join('')}</ul><p class="mut">BLOCK: no new ideas. REDUCE: one idea, half size, no options. ALLOW: up to three.</p></div>
+<div class="card"><h3>Distribution days (active)</h3><table><tr><th>Index</th><th>d5</th><th>d15</th><th>d25</th></tr>${['spy','qqq'].filter(k=>d[k]).map(k=>`<tr><td>${k.toUpperCase()}</td><td>${d[k].d5}</td><td>${d[k].d15}</td><td>${d[k].d25}</td></tr>`).join('')}</table><p class="mut">Overall: <b>${esc(d.risk||'n/a')}</b></p></div>
+<div class="card"><h3>Risk limits</h3><ul class="t"><li>${D.risk_pct||1}% of equity risked per idea; ${D.max_position_pct||10}% max position</li><li>Defined-risk options only; no naked short options</li><li>Month stop -3 points, week stop -2, cooldown after two -1s in a row</li></ul></div>
+<div class="card"><h3>Exposure by book</h3>${['short','long'].map(b=>{const n=P.filter(p=>p.book===b).length;return `<div>${b==='short'?'Short term':'Long term'}: <b>${n}</b> ideas</div>`}).join('')}</div></div>`;
+// Scorecard
+const S=D.scorecard,pct=Math.max(0,Math.min(100,S.points/S.goal*100));
+$('#t-score').innerHTML=`<div class="card"><h3>Month ${esc(S.month)}: points vs goal</h3><div class="kpi"><b>${S.points} / ${S.goal}</b></div><div class="bar" style="margin:10px 0"><i style="width:${pct}%;background:var(--up)"></i></div><div class="stat"><div>Scored<b>${S.scored}</b></div><div>+1<b class="up">${S.plus}</b></div><div>0<b>${S.zero}</b></div><div>-1<b class="dn">${S.minus}</b></div></div><p class="mut">+1 target reached, 0 moved the right way, -1 moved the wrong way. Without a real edge, average points per call at a 0.75 volatility target are about zero or negative, so the 10-point goal needs either an edge or targets close enough to be low value. Do not widen risk to catch up.</p></div>`;
+$('#t-src').innerHTML=`<div class="card"><h3>Sources</h3><ul class="t">${[...(D.sources||[]),...P.flatMap(p=>p.sources||[])].filter((s,i,a)=>a.findIndex(x=>x.url===s.url)===i).map(s=>`<li><a href="${safeUrl(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.title)}</a></li>`).join('')}</ul></div>`;
+</script></body></html>

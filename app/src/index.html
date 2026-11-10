@@ -1,0 +1,275 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-src file:;">
+<title>Equity Desk</title><link rel="stylesheet" href="app.css"></head><body>
+<div id="app">
+  <header id="top">
+    <div class="logo">EQUITY<b>DESK</b></div>
+    <div id="cmdWrap"><span class="cmdKey">CMD</span><input id="cmd" spellcheck="false" autocomplete="off" placeholder="NVDA &lt;F8&gt; GP · SPX &lt;F10&gt; · NVDA BOOK · AI · HELP"><button id="goKey" class="key go">&lt;GO&gt;</button></div>
+    <button class="key menu" id="helpKey" title="F1">HELP</button>
+    <div class="grow"></div>
+    <button class="key thm" id="themeKey" title="Dark / light mode (Ctrl+Alt+T)">☾</button>
+    <div id="clocks"></div>
+  </header>
+  <nav id="fkeys">
+    <button data-v="desk" class="on"><i>1</i>DESK<span>Research desk</span></button>
+    <button data-v="watch"><i>2</i>MON<span>Monitor</span></button>
+    <button data-v="gp"><i>3</i>GP<span>Launchpad</span></button>
+    <button data-v="fin"><i>4</i>FIN<span>Financials</span></button>
+    <button data-v="news"><i>5</i>NEWS<span>Live headlines</span></button>
+    <button data-v="ind"><i>6</i>CUSTOM<span>Customization</span></button>
+    <button data-v="lab"><i>7</i>NEW<span>Coming soon</span></button>
+    <button data-v="set"><i>8</i>SET<span>Settings</span></button>
+    <button data-v="help"><i>9</i>HELP<span>Keys &amp; commands</span></button>
+    <span class="grow"></span><span id="sectorHint" class="mut small"></span>
+  </nav>
+  <main>
+    <section id="v-desk" class="view on">
+      <div class="ph"><b>DESK</b> <span id="deskTitle">Market overview</span><span class="grow"></span><button id="deskBrief" class="btn" title="AI briefing on what is moving, using the app's own data">✦ AI market brief</button><button id="deskToggle" class="btn" hidden>Market overview</button><button id="openPicks" class="btn" title="Legacy: open an ideas file in the old picks.json format (left over from an early version, no longer used)">Open picks.json</button><span class="mut small" id="deskInfo"></span></div>
+      <div id="deskHome"><p class="mut small">DESK is your home screen: world markets, your MON movers and top headlines. Click any row to chart it.</p><div id="deskGrid"></div></div>
+      <iframe id="deskFrame" sandbox="allow-scripts allow-modals allow-popups"></iframe>
+    </section>
+
+    <section id="v-watch" class="view">
+      <div class="ph"><b>MON</b> Monitor <select id="monList" title="The watchlist MON shows. They are linked: adding or removing a ticker here changes that watchlist too, and the other way round"></select><span class="grow"></span><input id="addSym" placeholder="Add ticker" size="10"><button class="btn" id="addBtn">Add</button><button class="btn" id="refWatch">Refresh</button> <button class="btn" id="monImp" title="Add tickers from a watchlist .json (or a .txt / .csv list)">Import .json</button><button class="btn" id="monExp" title="Save the symbols as a .json file you can import again or share">Export .json</button><button class="btn" id="monFile" title="Open watchlists.json, the one file MON and every watchlist read. Edits you save there show up in the app straight away">Edit .json</button><button class="btn" id="monColsBtn" title="Choose stat columns">Columns ▾</button></div><div class="wlCols" id="monCols"></div>
+      <div class="tw"><table id="wt"></table></div>
+    </section>
+
+    <section id="v-gp" class="view">
+      <div class="ph"><b>GP</b> Launchpad
+        <span class="sep">Add</span><button class="btn" data-add="chart">Chart</button><button class="btn" data-add="book">Order book</button><button class="btn" data-add="watchlist">Watchlist</button><button class="btn" data-add="monitor">Monitor</button><button class="btn" data-add="ai">AI assistant</button>
+        <span class="sep">Layout</span><span id="presets"><button class="rb" data-p="1" title="One chart">▣</button><button class="rb" data-p="2v" title="Two side by side">◫</button><button class="rb" data-p="2h" title="Two stacked">⊟</button><button class="rb" data-p="3" title="One big + two">◧</button><button class="rb" data-p="4" title="2 x 2">⊞</button><button class="rb" data-p="trade" title="Chart + order book + AI">◨</button></span>
+        <span class="grow"></span><span class="mut small">Drag a tab onto another panel's edge to split, onto its middle to join. Drag gutters to resize.</span></div>
+      <div id="gpWrap">
+        <div id="tools">
+          <div id="toolGroups"></div>
+          <hr>
+          <button id="tMagnet" class="tg" title="Magnet: snap to open/high/low/close"><svg viewBox="0 0 24 24"><path d="M6 3v9a6 6 0 0012 0V3h-4v9a2 2 0 01-4 0V3z"/></svg></button>
+          <button id="tStay" class="tg" title="Stay in drawing mode"><svg viewBox="0 0 24 24"><path d="M7 11V8a5 5 0 0110 0v3M5 11h14v10H5z"/></svg></button>
+          <button id="tHide" class="tg" title="Hide all drawings"><svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+          <button id="tUndo" title="Undo"><svg viewBox="0 0 24 24"><path d="M9 7H4V2M4 7a9 9 0 11-1 8"/></svg></button>
+          <button id="tClear" title="Remove all drawings on this symbol"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14"/></svg></button>
+        </div>
+        <div id="ws"></div>
+      </div>
+    </section>
+
+    <section id="v-fin" class="view">
+      <div class="ph"><b>FIN</b> Financials<input id="finSym" size="10" spellcheck="false" placeholder="Ticker" title="Type a ticker and press Enter (NVDA, 700 HK, 7203 JT)"><span id="finName"></span><span class="grow"></span><span id="finPer" class="finSeg"></span><button class="btn sm" id="finReload" title="Reload">↻</button></div>
+      <div id="finTabs" class="finTabs"></div>
+      <div id="finBody"></div>
+    </section>
+    <section id="v-lab" class="view">
+      <div class="ph"><b>7</b> Coming soon</div>
+      <p class="mut pad">This tab is kept free for the next feature.</p>
+    </section>
+    <section id="v-news" class="view">
+      <div class="ph"><b>NEWS</b> Live headlines · Bloomberg, Yahoo Finance, CNBC, MarketWatch, WSJ, FT, Nasdaq, Google News, SEC filings<span class="grow"></span><span class="mut small">Click a headline to open it in your browser. NVDA CN = company news, TOP = market news.</span></div>
+      <div id="newsHost"></div>
+    </section>
+
+    <section id="v-ind" class="view">
+      <div class="ph"><b>CUSTOM</b> Customization<span id="cuTabs" class="finTabs"><button data-cu="ind" class="on">Indicators</button><button data-cu="ui">UI</button></span><span class="grow"></span><button class="btn" id="indImport">Import .py or .c</button><button class="btn" id="cuImport" hidden title="Python or C programs print the theme as JSON; HTML+CSS files use only their style part">Import theme (.py, .c, .css, .html)</button><button class="btn" id="cuReload" hidden title="Read the imported theme file again after you edit it">Reload file</button><button class="btn" id="cuReset" hidden title="Back to the standard look and tab order (command: RESETUI)">Reset to default</button></div>
+      <div class="split" id="cuInd">
+        <div class="tw"><table id="it"><thead><tr><th title="Added to new charts automatically">Default</th><th>Name</th><th>Lang</th><th>Pane</th><th>Parameters</th><th>Outputs</th><th></th></tr></thead><tbody></tbody></table><div id="indMsg" class="msg"></div></div>
+        <div class="card2 doc">
+          <h3>Python</h3>
+<pre># @name RSI 14
+# @pane separate        (overlay = on the price chart)
+# @outputs rsi
+# @param length 14
+# @level 30 70
+def compute(bars, params):
+    # bars: dict of lists: time, open, high, low, close, volume
+    # return one list, a list of lists, or {name: list}
+    # use None for "no value"; numpy arrays are fine too
+    ...</pre>
+          <h3>C</h3>
+<pre>// @name Bollinger 20
+// @outputs mid upper lower
+// @param length 20
+// @param mult 2
+void compute(int n, const double *open, const double *high,
+             const double *low, const double *close,
+             const double *volume, const double *params,
+             double **out)   /* out[k][i], pre-filled with NAN */
+{ ... }</pre>
+          <p class="mut small">Python uses your installed Python 3 (py / python). C is compiled once with gcc, clang or tcc and cached. Set paths in SET if they are not on PATH. Imported code runs as a normal program on your PC, so only import files you trust. Examples are in <code>samples/indicators</code>.</p>
+        </div>
+      </div>
+      <div class="split" id="cuUi" hidden>
+        <div class="cuCtl">
+          <div id="cuMsg" class="small mut"></div>
+          <h3>Colours</h3><div id="cuColors" class="cuGrid"></div>
+          <h3>Text and corners</h3>
+          <div class="cuRow"><label>Font</label><input id="cuFont" list="cuFontL" placeholder="Consolas (default)" spellcheck="false"><datalist id="cuFontL"><option value="Consolas, monospace"><option value="Cascadia Mono, Consolas, monospace"><option value="JetBrains Mono, Consolas, monospace"><option value="Segoe UI, Arial, sans-serif"><option value="Arial, sans-serif"><option value="Verdana, sans-serif"><option value="Georgia, serif"></datalist></div>
+          <div class="cuRow"><label>Text size</label><select id="cuSize"><option value="">Default (13)</option><option>11</option><option>12</option><option>13</option><option>14</option><option>15</option><option>16</option></select></div>
+          <div class="cuRow"><label>Corner radius</label><input id="cuRad" type="range" min="0" max="10" step="1"><span id="cuRadV" class="mut small"></span></div>
+          <h3>Tab order</h3><p class="mut small">The nine tabs always stay; you can only move them. Ctrl+number keeps opening the same tab.</p><div id="cuOrder"></div>
+        </div>
+        <div class="card2 doc">
+          <h3>What a theme can change</h3>
+          <p class="small">Colours, fonts, text size, corner radius, shadows, gradients and the order of the tabs. Everything else is ignored: no new buttons or text, nothing hidden or moved, no scripts, no web links, and the tabs and app functions stay as they are. The app tells you which lines it ignored.</p>
+          <h3>HTML + CSS</h3>
+<pre>&lt;!-- @name Ocean   @tabs DESK MON GP NEWS FIN CUSTOM NEW SET HELP --&gt;
+&lt;style&gt;
+:root { --amb: #00c2ff; --yel: #7fffd4; --bg: #020b14; }
+#fkeys button.on { background: linear-gradient(90deg,#00c2ff,#0077ff); }
+.card2 { border-radius: 8px; box-shadow: 0 0 6px #00c2ff55; }
+&lt;/style&gt;</pre>
+          <h3>Python</h3>
+<pre>import json
+print(json.dumps({
+  "name": "Ocean",
+  "colors": {"amb": "#00c2ff", "bg": "#020b14", "up": "#2ee6a6"},
+  "font": "Cascadia Mono, Consolas, monospace", "fontSize": 13, "radius": 6,
+  "tabs": ["DESK", "MON", "GP", "NEWS", "FIN", "CUSTOM", "NEW", "SET", "HELP"],
+  "css": "#fkeys button.on { background: #00c2ff; }"
+}))</pre>
+          <h3>C</h3>
+<pre>#include &lt;stdio.h&gt;
+int main(void) {
+  puts("{\"colors\": {\"amb\": \"#00c2ff\", \"bg\": \"#020b14\"}, \"radius\": 6}");
+  return 0;
+}</pre>
+          <p class="mut small">Colour names: bg, panel, panel2, panel3, line, ink (text), ink2, mut (muted text), amb (accent), amb2, yel (highlight), up, dn, blu, hdr (header bars), hdrInk, hi, tint, tint2. Allowed CSS properties: color, background (colour or gradient), border colours, border-radius, box-shadow, text-shadow (small sizes only), font-family, font-weight, font-style, letter-spacing, text-transform, text-decoration. Python and C run once on this PC when you import or reload, like custom indicators, so only use files you trust.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="v-help" class="view">
+      <div class="ph"><b>HELP</b> Keys &amp; commands<input id="helpQ" placeholder="Search help: keys, commands, mouse… (Ctrl+F)" spellcheck="false" autocomplete="off"><span id="helpN" class="mut small"></span><span class="grow"></span><button class="btn" id="kReset">Reset all keys</button></div>
+      <div class="split helpSplit">
+        <div class="tw"><table id="kt"><thead><tr><th>Action</th><th>Keys</th><th></th></tr></thead><tbody></tbody></table><div id="kMsg" class="msg"></div></div>
+        <div class="card2 doc">
+          <h3>Bloomberg-style commands</h3>
+          <table class="kv">
+          <tr><td>NVDA &lt;F8&gt;</td><td>F8 is Bloomberg's yellow EQUITY key: type a ticker, press F8 and it opens on the chart (F10 INDEX: SPX F10, F11 CRNCY: EURUSD F11, F9 CMDTY: CL1 F9). You can also just press Enter.</td></tr><tr><td>DESK (1)</td><td>Home screen: world indices with open/closed dots, rates/FX/commodities, your MON gainers and losers, top headlines, ✦ AI market brief.</td></tr>
+          <tr><td>NVDA GIP</td><td>Intraday chart (1D)</td></tr>
+          <tr><td>SPX &lt;F10&gt;</td><td>Index: SPX, INDU, CCMP, NDX, RTY, VIX map to Yahoo symbols</td></tr>
+          <tr><td>EURUSD &lt;F11&gt;</td><td>Currency (CRNCY)</td></tr>
+          <tr><td>CL1 &lt;F9&gt;</td><td>Commodity front month: CL1, GC1, SI1, NG1, HG1</td></tr>
+          <tr><td>USGG10YR &lt;F2&gt;</td><td>Government yields: USGG3M, USGG5YR, USGG10YR, USGG30YR</td></tr>
+          <tr><td>MON ↔ watchlist</td><td>MON shows one watchlist (pick it at the top of MON, Main by default) and they stay linked: add or remove a ticker in either and both change. Everything lives in one file, watchlists.json in %APPDATA%\Equity Desk: MON &gt; Edit .json opens it, and changes you save there show up in the app within a couple of seconds ("symbols" lists without ids are fine; "monitor" names the list MON shows). Import .json also reads text files written as name:{ ARM NVDA }</td></tr><tr><td>Tabs</td><td>Ctrl+1 DESK · 2 MON · 3 GP · 4 FIN · 5 NEWS · 6 CUSTOM (custom indicators and custom UI) · 7 new tab (coming soon) · 8 SET · 9 HELP</td></tr><tr><td>UI · THEME</td><td>Custom UI (tab 6 &gt; UI): colour pickers, font, text size, corner radius and tab order, or import a theme written in Python, C or HTML+CSS. Cosmetic only: the nine tabs and every function stay, tabs can only be moved, and anything that is not a look change is ignored and listed. RESETUI puts the standard look back</td></tr><tr><td>Watchlist .json</td><td>Export .json saves a list as { "name": "Main", "symbols": ["ARM", "NVDA"] }; Import .json reads that, Equity Desk exports or plain arrays of symbols. Works in MON and in the watchlist panel</td></tr><tr><td>FIN · NVDA FA</td><td>Company financials like TradingView (Ctrl+4): Overview, Statements (income, balance sheet, cash flow), Statistics (valuation, profitability, liquidity, solvency, per share), Estimates (analyst rating, price target, EPS and revenue forecasts), Dividends, Earnings (reported vs estimate, surprise) and Segments (by business and country; needs an FMP key). Annual / Quarterly switch. NVDA ERN, NVDA DVD, NVDA EE open those sub-tabs</td></tr><tr><td>Levels &amp; sessions</td><td>Indicator library group with previous day / week / month high, low and close, session separator lines, Pivot Points Standard (Traditional, Fibonacci, Woodie, Classic, DeMark, Camarilla by day / week / month / quarter / year), CPR, daily / weekly / monthly open, opening range breakout, Asia / London / New York session highs and lows, 52-week and all-time high / low, round numbers, ADR levels, week / month VWAP, volume profile POC / VAH / VAL, unfilled gaps, daily MA on intraday charts, golden / death cross, candlestick patterns and inside / outside bars. Days follow the exchange&#39;s own time zone</td></tr><tr><td>Profile</td><td>Asked on first launch, change in SET &gt; Profile: name, primary market (clocks, DESK order, starter MON list), location, time zone (all times and the local clock) and primary currency</td></tr><tr><td>Primary currency</td><td>DESK movers, the ticker tape and the chart legend add the price in your currency next to the original (≈ value); MON and watchlists default their "Last in" column to it. Indices and FX pairs are not converted</td></tr><tr><td>Reset DESK</td><td>SET &gt; Profile &gt; Reset DESK (tab 1) to default: back to the market overview and forget the loaded picks.json</td></tr><tr><td>NVDA BOOK</td><td>Order book (also DEPTH, MBO)</td></tr><tr><td>Paid AI cost reminder</td><td>Before each message to a paid provider (Claude, ChatGPT, Gemini…) a pop-up names the provider and model and estimates the tokens sent. OK or ✕ continues, Cancel stops; "Don't show again" turns it off for that provider. SET &gt; AI assistant &gt; Show cost reminders again</td></tr><tr><td>Local AI models</td><td>SET &gt; AI assistant &gt; Ollama (local): Install Ollama, then Download Gemma 4 (31B best, 26B MoE, E4B) or gpt-oss (120B best, 20B) with a progress bar; Use switches the assistant between them, Remove frees disk space</td></tr><tr><td>Order book sources</td><td>SET &gt; Order book depth: pick a broker (IBKR, Futu/moomoo OpenD, Longbridge, Tiger, Schwab) and, for US stocks, a direct Nasdaq TotalView or NYSE OpenBook feed that replaces the broker's book. Display only: the app never places orders. Every key is encrypted on this PC</td></tr>
+          <tr><td>AI · ASK what is NVDA doing?</td><td>Open the AI assistant, or ask it directly</td></tr>
+          <tr><td>ADD NVDA</td><td>Add to the monitor</td></tr><tr><td>TOP · N · NEWS</td><td>Market news (NEWS screen, Ctrl+5)</td></tr><tr><td>NVDA CN</td><td>Company news for NVDA</td></tr>
+          <tr><td>700 HK · 7203 JT · 2330 TT</td><td>Other markets with Bloomberg-style codes: HK Hong Kong, JT/JP Tokyo, TT Taiwan, KS Korea, CH China A-shares, LN London, GR Germany, FP Paris, NA Amsterdam, SW Swiss, AU Australia, CT Canada, IN India, SP Singapore. Yahoo symbols such as 0700.HK also work</td></tr><tr><td>HSI · NKY · TWSE · KOSPI · SHCOMP &lt;INDEX&gt;</td><td>Asian and European indices (also CSI300, AS51, SENSEX, NIFTY, STI, UKX, DAX, CAC, SMI)</td></tr><tr><td>NVDA AIS · NVDA IDEA</td><td>AI research idea for a ticker: bias, support/resistance, entry/target/stop you can show on the chart (research only, no orders)</td></tr><tr><td>AI panel ✦ Idea · ✦ Rank MON</td><td>Idea for the active chart, or a ranking of your MON list from its stats</td></tr><tr><td>Clocks</td><td>Top right: pick exchanges in SET &gt; Appearance. Green dot = open, yellow = lunch break, grey = closed (holidays not included). The badge shows the market of the active chart</td></tr><tr><td>Chart interval box</td><td>Auto, seconds (1s 5s 15s 30s, built live from ticks while the chart is open), minutes (1m 2m 5m 15m 30m), hours (1h 2h 4h), D W M. Picking an interval sets a fitting range; the range buttons still work</td></tr><tr><td>Charts remember</td><td>Symbol, interval, range, zoom and indicators are saved and come back after a restart, and the app reopens on the screen you left. With SET &gt; Same indicators on every chart, the last indicators you used apply to all charts</td></tr><tr><td>AI reads the app</td><td>The assistant can look up your open charts, MON list, watchlists, picks, drawn levels, quotes, bars, stats, news and the order book by itself (read-only)</td></tr><tr><td>W · WL</td><td>Open the watchlist panel</td></tr><tr><td>Watchlist Import</td><td>Load a list from .json (an EquityDesk export or {"name":..,"symbols":[..]}), .txt or .csv of tickers</td></tr><tr><td>Watchlist Export .json</td><td>Download the current list with every number shown, in the chosen currency</td></tr><tr><td>Last in ▾ · Columns ▾</td><td>MON and the watchlist panel keep Last in the stock's own currency; the "Last in" column converts it to the currency picked in its header (USD, EUR, GBP, JPY, CNY, HKD, CAD, AUD, CHF, INR, SGD, KRW, TWD, MYR, THB). Columns ▾ picks stats: P/E, EPS, beta, alpha vs SPY, nearest ATM call delta / theta, IV, 52-week range and more (hover a header for its meaning)</td></tr><tr><td>Theme</td><td>☾ / ☀ button at the top right, Ctrl+Alt+T, or SET &gt; Appearance (dark, light, follow Windows)</td></tr><tr><td>Version</td><td>Equity Desk Beta 1.0 (1.0.0-beta.1). See CHANGELOG.md in the source for what changed</td></tr><tr><td>Language / 語言</td><td>SET &gt; Appearance &gt; Language, or the first-launch screen: English (default) or Traditional Chinese (Hong Kong). Only the text on screen changes; tickers, commands and files stay the same</td></tr><tr><td>NVDA WL</td><td>Add NVDA to the active watchlist</td></tr><tr><td>Watchlist ↑ ↓</td><td>Walk the list; each symbol opens in the active chart. Click a column header to sort</td></tr>
+          <tr><td>DESK · MON · GP · IND · SET · HELP</td><td>Switch screen</td></tr>
+          <tr><td>1D 5D 1M 3M 6M 1Y 5Y</td><td>Range of the active chart</td></tr>
+          <tr><td>Any letter</td><td>Starts typing a command</td></tr>
+          </table>
+          <h3>Mouse</h3>
+          <table class="kv"><tr><td>Drag an area corner inward</td><td>Split the area (like Blender). Drag left/right for a vertical split, up/down for a horizontal one</td></tr>
+          <tr><td>Drag a corner into a neighbour</td><td>Join: the area you dragged from takes over the neighbour (its panels become tabs)</td></tr>
+          <tr><td>Ctrl + drag a corner</td><td>Swap two areas</td></tr>
+          <tr><td>Right-click an edge</td><td>Join either way, swap, even out sizes</td></tr>
+          <tr><td>Right-click a header</td><td>Vertical / horizontal split, maximise, close area</td></tr>
+          <tr><td>Editor-type menu</td><td>The first box in each header turns the area into a chart, order book, monitor or AI assistant</td></tr>
+          <tr><td>Drag a tab</td><td>Onto another area's edge to split it, onto its middle to join it as a tab</td></tr>
+          <tr><td>Drag a gutter</td><td>Resize areas</td></tr>
+          <tr><td>ƒx or /</td><td>Indicators: search 122 built-ins plus your Python/C ones; add as many as you like, the same one several times too</td></tr>
+          <tr><td>Legend ◉ ⚙ ✕</td><td>Hide, edit (inputs, colours, width, pane) or remove one indicator; double-click its name to edit</td></tr><tr><td>Click a panel</td><td>Makes it active (amber border); commands and drawing tools act on it</td></tr>
+          <tr><td>Drawing toolbar ▸</td><td>Each toolbar button is a group like TradingView's (lines, pitchforks, Fib and Gann, patterns, forecasting, shapes, annotation, icons). Click ▸ for the whole group; the button remembers your last tool</td></tr>
+          <tr><td>Long / Short position</td><td>Alt+L / Alt+S, click the entry. Drag the target or stop handles; set account size and risk % in the bar below to see quantity and P&amp;L. Annotation only, no orders are placed</td></tr>
+          <tr><td>Path / polyline</td><td>Click points, double-click or Enter to finish</td></tr>
+          <tr><td>Drag a drawing</td><td>Move it; drag a handle to reshape; double-click a note to edit</td></tr></table>
+          <p class="mut small">Click a key cell, then press the new combination to rebind it. Esc cancels. Sector keys follow the Bloomberg keyboard layout on a normal PC keyboard (F1 HELP, F2 GOVT … F11 CRNCY).</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="v-set" class="view">
+      <div class="ph"><b>SET</b> Settings</div>
+      <div class="card2" id="sSecBox"><h3>API keys and privacy</h3>
+      <div class="small" id="sSec"></div>
+      <div class="row3"><button class="btn sm" id="sKeysFolder" title="Open the folder that holds settings.json (keys are inside, encrypted)">Show settings folder</button><button class="btn sm" id="sKeysClear" title="Delete every saved API key and broker sign-in from this PC">Remove all keys</button></div></div>
+      <h3>Profile</h3><div id="sProfile" class="small"></div><div class="row3"><button class="btn sm" id="sProfEdit">Edit profile</button><button class="btn sm" id="sDeskReset" title="Back to the market overview and forget the loaded picks.json">Reset DESK (tab 1) to default</button></div>
+      <div class="card2"><h3>Data providers</h3>
+      <label>Order</label><select id="sProv"><option value="fmp-first">FMP first, Yahoo fallback</option><option value="yahoo">Yahoo only</option><option value="fmp">FMP only</option></select>
+      <label>FMP API key <span class="mut" id="keyState"></span></label><div class="row3"><input id="sKey" type="password" placeholder="Paste key, then Save (stored encrypted on this PC)" autocomplete="off"><button class="btn sm" id="sKeyTest" title="Check the saved key with FMP">Test</button><button class="btn sm" id="sClear">Remove</button></div>
+      <div class="mut small">The free FMP plan covers US stocks only; other markets fall back to Yahoo.</div>
+      <label>Refresh every (seconds)</label><input id="sRef" type="number" min="10" max="300">
+      <h3>Appearance</h3>
+      <label data-noi18n>Language / 語言</label><select id="sLang" class="langSel" data-noi18n></select>
+      <label>Theme</label><select id="sTheme"><option value="dark">Dark (terminal)</option><option value="light">Light</option><option value="system">Follow Windows</option></select>
+      <label class="chk"><input type="checkbox" id="sSync"> Same indicators on every chart (the last ones you used, saved for new charts too)</label>
+      <label>Clocks at the top right</label><div id="sClocks" class="ckgrid"></div>
+      <h3>Custom indicators</h3>
+      <label>Python command (blank = auto: py -3, python)</label><input id="sPy" placeholder="e.g. C:\Python312\python.exe" spellcheck="false">
+      <label>C compiler (blank = auto: gcc, clang, tcc)</label><input id="sCc" placeholder="e.g. C:\w64devkit\bin\gcc.exe" spellcheck="false">
+      <h3>AI assistant</h3>
+      <label>Provider <span class="mut">(paid APIs bill your own account; keys are encrypted on this PC)</span></label><select id="sAi"></select>
+      <div class="mut small">Before each message to a paid provider the app shows a cost reminder, which you can switch off per provider. <button class="x" id="sCostReset">Show cost reminders again</button></div>
+      <div id="aiClaude" class="aiopt"><label>Anthropic API key <span class="mut" id="aKeyState"></span></label><div class="row3"><input id="sAKey" type="password" placeholder="sk-ant-… (stored encrypted on this PC)" autocomplete="off"><button class="btn sm" id="sAClear">Remove</button></div>
+      <label>Claude model</label><select id="sCm"><option value="claude-opus-5-5">Claude Opus 5.5</option><option value="claude-sonnet-5-5">Claude Sonnet 5.5</option><option value="claude-haiku-5-5">Claude Haiku 5.5</option><option value="claude-fable-5-1">Claude Fable 5.1</option></select></div>
+      <div id="aiOai" class="aiopt"><label><span id="oaiName"></span> API key <span class="mut" id="oaiKeyState"></span></label><div class="row3"><input id="sOKey" type="password" placeholder="Paste key (stored encrypted on this PC)" autocomplete="off"><button class="btn sm" id="sOClear">Remove</button></div>
+      <label id="oaiUrlL">Base URL (OpenAI-compatible, ends in /v1)</label><input id="sOUrl" spellcheck="false" placeholder="http://127.0.0.1:1234/v1">
+      <label>Model <button class="x" id="sOList" title="List the models this key can use">↻ list</button> <span class="mut small" id="oaiDef"></span></label><input id="sOModel" list="oaiModels" spellcheck="false"><datalist id="oaiModels"></datalist></div>
+      <div id="aiOllama" class="aiopt"><label>Model <span class="mut">(Gemma 4 or gpt-oss, run on this PC by Ollama)</span> <button class="x" id="sOlist" title="Check Ollama and the installed models">↻ refresh</button></label><select id="sOm"></select>
+      <div id="lmBox"><div class="lmHead"><span id="lmStat" class="small">Checking Ollama…</span><button class="btn sm" id="lmOllama" hidden>Install Ollama</button></div><div id="lmList"></div></div>
+      <label>Ollama URL <span class="mut">(leave as is unless Ollama runs on another computer)</span></label><input id="sOu" spellcheck="false"></div>
+      <h3>Order book depth (read-only, display only)</h3>
+      <label class="chk"><input type="checkbox" id="sIb"> Show exchange depth in the order book</label>
+      <label>Broker <span class="mut">(where the order book table gets its levels; nothing here can place orders)</span></label><select id="sDepth"><option value="ibkr">Interactive Brokers (IB Gateway / TWS)</option><option value="futu">Futu / moomoo (OpenD)</option><option value="longbridge">Longbridge</option><option value="tiger">Tiger Brokers</option><option value="schwab">Charles Schwab (US stocks)</option><option value="none">None (direct exchange feeds only)</option></select>
+      <div id="dIb" class="aiopt"><label>Book <span class="mut">(each needs the matching IBKR market-data subscription)</span></label><select id="sIbV"><option value="SMART">SMART: all venues you subscribe to</option><option value="ISLAND">Nasdaq TotalView</option><option value="NYSE">NYSE OpenBook</option><option value="ARCA">NYSE Arca</option><option value="BATS">Cboe BZX</option><option value="IEX">IEX</option></select>
+      <label>Host · port · client id <span class="mut">(Gateway paper 4002, live 4001; TWS 7497 / 7496)</span></label><div class="row3"><input id="sIbH" size="12"><input id="sIbP" size="6"><input id="sIbC" size="5"></div>
+      <div class="mut small">Hong Kong, Tokyo, London, Frankfurt and other listed markets use their home exchange book when your IBKR account has that data.</div></div>
+      <div id="dFutu" class="aiopt"><label>OpenD host · port <span class="mut">(API port, default 11111)</span></label><div class="row3"><input id="sFuH" size="14" spellcheck="false"><input id="sFuP" size="6"><button class="btn sm" data-test="futu">Test</button></div>
+      <div class="mut small">Run Futu OpenD (or moomoo OpenD) and log in there; your Futu login stays in OpenD and the app never sees it. Covers Hong Kong, US, Shanghai/Shenzhen (Stock Connect) and Singapore books that your Futu quote rights include (HK depth needs LV2). If OpenD has RSA encryption switched on, switch it off: the app talks to it on this PC only.</div></div>
+      <div id="dLb" class="aiopt"><label>Longbridge app key <span class="mut" data-state="lbAppKey"></span></label><input data-secret="lbAppKey" type="password" autocomplete="off" placeholder="from open.longbridge.com → Developers">
+      <label>App secret <span class="mut" data-state="lbAppSecret"></span></label><input data-secret="lbAppSecret" type="password" autocomplete="off">
+      <label>Access token <span class="mut" data-state="lbToken"></span></label><div class="row3"><input data-secret="lbToken" type="password" autocomplete="off"><button class="btn sm" data-test="longbridge">Test</button><button class="btn sm" data-clear="lbAppKey,lbAppSecret,lbToken">Remove</button></div>
+      <div class="mut small">Hong Kong, US, Shanghai/Shenzhen and Singapore books, as far as your Longbridge quote level allows. Access tokens expire (you set how long when you make one); paste a new one here when it does.</div></div>
+      <div id="dTiger" class="aiopt"><label>Tiger ID · licence</label><div class="row3"><input id="sTgId" size="12" spellcheck="false" placeholder="e.g. 20150001"><select id="sTgLic"><option value="">Auto</option><option value="TBHK">TBHK (Hong Kong)</option><option value="TBSG">TBSG (Singapore)</option><option value="TBNZ">TBNZ (New Zealand)</option><option value="TBAU">TBAU (Australia)</option><option value="TBUS">TBUS (US)</option></select></div>
+      <label>Private key <span class="mut" data-state="tigerKey"></span></label><input data-secret="tigerKey" type="password" autocomplete="off" placeholder="the RSA private key from the Tiger developer page">
+      <label>Token <span class="mut">(TBHK accounts only)</span> <span class="mut" data-state="tigerToken"></span></label><div class="row3"><input data-secret="tigerToken" type="password" autocomplete="off"><button class="btn sm" data-test="tiger">Test</button><button class="btn sm" data-clear="tigerKey,tigerToken">Remove</button></div>
+      <div class="mut small">US, Hong Kong, China A and Singapore books your Tiger quote permissions include. The app never asks for your account number or trading password.</div></div>
+      <div id="dSchwab" class="aiopt"><label>Schwab app key <span class="mut" data-state="schwabKey"></span></label><input data-secret="schwabKey" type="password" autocomplete="off" placeholder="from developer.schwab.com → Apps">
+      <label>App secret <span class="mut" data-state="schwabSecret"></span></label><input data-secret="schwabSecret" type="password" autocomplete="off">
+      <label>Callback URL <span class="mut">(must match your Schwab app exactly)</span></label><input id="sSchCb" spellcheck="false">
+      <label>Sign in <span class="mut" data-state="schwabRefresh"></span></label><div class="row3"><button class="btn sm" id="sSchLogin">1. Open Schwab sign-in</button><input id="sSchCode" placeholder="2. paste the address the browser lands on" autocomplete="off" spellcheck="false"><button class="btn sm" id="sSchGo">Connect</button></div>
+      <div class="row3"><button class="btn sm" data-test="schwab">Test</button><button class="btn sm" id="sSchOut">Sign out</button><button class="btn sm" data-clear="schwabKey,schwabSecret,schwabRefresh">Remove keys</button></div>
+      <div class="mut small">Nasdaq and NYSE books from Schwab's streamer (US stocks only). Schwab makes you sign in again every 7 days. After sign-in the browser shows an error page at 127.0.0.1; that's expected, copy its address.</div></div>
+      <h3>Direct exchange feeds (US stocks)</h3>
+      <div class="mut small">When one is set, it replaces the broker's book for US stocks it covers; the broker above stays the fallback and still covers other markets.</div>
+      <label>Nasdaq TotalView <span class="mut" data-state="tvKey"></span></label><select id="sTv"><option value="off">Off</option><option value="databento">Databento API (XNAS.ITCH, Nasdaq TotalView-ITCH)</option></select>
+      <div class="row3" data-feed="sTv"><input data-secret="tvKey" type="password" autocomplete="off" placeholder="Databento API key db-…"><button class="btn sm" data-test="tvKey">Test</button><button class="btn sm" data-clear="tvKey">Remove</button></div>
+      <label>NYSE OpenBook <span class="mut">(NYSE's depth feed)</span> <span class="mut" data-state="obKey"></span></label><select id="sOb"><option value="off">Off</option><option value="databento">Databento API (XNYS.PILLAR, NYSE integrated / OpenBook)</option></select>
+      <div class="row3" data-feed="sOb"><input data-secret="obKey" type="password" autocomplete="off" placeholder="Databento API key (can be the same key)"><button class="btn sm" data-test="obKey">Test</button><button class="btn sm" data-clear="obKey">Remove</button></div>
+      <div class="mut small">TotalView covers every stock that trades on Nasdaq, including NYSE-listed ones; OpenBook is used for NYSE-listed stocks. Nasdaq's and NYSE's own feeds are licensed to firms (Nasdaq Cloud Data Service is a Kafka stream that needs a Nasdaq data agreement), so the app reads the same exchange data through Databento, which licenses it per user and bills by data used. A TotalView subscription you already have at IBKR works through IBKR → Nasdaq TotalView above.</div>
+      <div class="savebar"><button class="btn" id="sSave">Save</button> <span id="sMsg" class="small"></span></div>
+      <p class="mut small">Keys are encrypted with your Windows account and only used by the app's background process; the page never sees them. Yahoo data comes from unofficial endpoints and can change without notice.</p></div>
+    </section>
+  </main>
+  <div id="tape"><div id="tapeIn"></div></div>
+  <footer id="status"><span id="srcline">No data yet</span><span class="grow"></span><span id="stMsg"></span><span class="warnTag">RESEARCH ONLY · NO ORDER ENTRY · DATA MAY BE DELAYED</span></footer>
+</div>
+<div id="indDlg" class="dlg" hidden><div class="dlgBox wide">
+  <div class="dlgHd"><b>Indicators</b><span class="mut small" id="idTarget"></span><span class="sp"></span><button class="x" data-close title="Close (Esc)">✕</button></div>
+  <input id="idSearch" placeholder="Search, e.g. RSI, bollinger, VWAP" spellcheck="false" autocomplete="off">
+  <div class="idBody"><div id="idCats"></div><div id="idList"></div></div>
+  <div class="dlgFt mut small">Click to add. Click again to add another copy with its own settings. ⚙ in the chart legend edits one.</div></div></div>
+<div id="stDlg" class="dlg" hidden><div class="dlgBox">
+  <div class="dlgHd"><b id="stTitle"></b><span class="sp"></span><button class="x" data-close title="Cancel (Esc)">✕</button></div>
+  <div id="stTabs"><button data-tab="in">Inputs</button><button data-tab="st">Style</button></div>
+  <div id="stBody"></div>
+  <div class="dlgFt"><button class="btn" id="stDef">Defaults</button><span class="sp"></span><button class="btn" id="stCancel">Cancel</button> <button class="btn pri" id="stOk">OK</button></div></div></div>
+<div id="costDlg" class="dlg" hidden><div class="dlgBox">
+  <div class="dlgHd"><b>Paid AI: this uses your API key</b><span class="sp"></span><button class="x" data-close title="Close and continue (Esc)">✕</button></div>
+  <div class="dlgBody small" id="costBody"></div>
+  <div class="dlgFt"><label class="chk small"><input type="checkbox" id="costOff"> <span id="costOffL">Don't show again</span></label><span class="sp"></span><button class="btn" id="costNo">Cancel</button> <button class="btn pri" id="costOk">OK, continue</button></div></div></div>
+<div id="setupDlg" class="dlg" hidden><div class="dlgBox">
+  <div class="dlgHd"><b id="setupTitle">Welcome to Equity Desk</b><span class="sp"></span><button class="x" data-close title="Skip (Esc)">✕</button></div>
+  <div class="dlgBody small" id="setupBody">
+    <p class="mut" id="setupIntro">A few details so clocks, times, currency and the home screen fit you. You can change them any time in SET &gt; Profile.</p>
+    <label data-noi18n>Language / 語言</label><select id="pfLang" class="langSel" data-noi18n></select>
+    <label>Your name</label><input id="pfName" maxlength="40" autocomplete="off" placeholder="e.g. John">
+    <label>Primary market <span class="mut small">(type to search or pick from the list)</span></label><input id="pfMkt" list="pfMktL" autocomplete="off" spellcheck="false"><datalist id="pfMktL"></datalist>
+    <label>Location</label><input id="pfLoc" list="pfLocL" maxlength="60" autocomplete="off" spellcheck="false" placeholder="e.g. London"><datalist id="pfLocL"></datalist>
+    <label>Time zone <span class="mut small">(type a city, region or offset such as +8)</span></label><input id="pfTz" list="pfTzL" autocomplete="off" spellcheck="false"><datalist id="pfTzL"></datalist>
+    <label>Primary currency <span class="mut small">(prices are converted to it; the original stays next to it)</span></label><input id="pfCcy" list="pfCcyL" autocomplete="off" spellcheck="false"><datalist id="pfCcyL"></datalist>
+    <div id="pfAiBox"><label>AI assistant <span class="mut small">(free and private, runs on this PC. Paid ones such as Claude or ChatGPT can be picked later in SET &gt; AI assistant)</span></label>
+    <select id="pfAi"><option value="gemma4:e4b">Gemma 4 E4B · runs on most PCs (10 GB)</option><option value="gemma4:26b">Gemma 4 26B · faster big model (19 GB, 20 GB memory)</option><option value="gemma4:31b">Gemma 4 31B · best Gemma (20 GB, 24 GB memory)</option><option value="gpt-oss:20b">gpt-oss 20B · OpenAI open model (14 GB, 16 GB memory)</option><option value="gpt-oss:120b">gpt-oss 120B · best gpt-oss (65 GB, 80 GB memory)</option></select>
+    <label class="chk small"><input type="checkbox" id="pfAiDl" checked> Download it now (needs the free Ollama app; you can keep using Equity Desk meanwhile)</label></div>
+    <div class="mut small" id="pfErr"></div></div>
+  <div class="dlgFt"><button class="btn" id="pfSkip">Skip</button><span class="sp"></span><button class="btn pri" id="pfOk">Start</button></div></div></div>
+<script src="i18n-zh.js"></script><script src="i18n.js"></script><script src="../vendor/lwc.js"></script><script src="studies.js"></script><script src="draw.js"></script><script src="layout.js"></script><script src="keys.js"></script><script src="app.js"></script><script src="fin-ui.js"></script></body></html>
