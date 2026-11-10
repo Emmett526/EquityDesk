@@ -1,0 +1,8 @@
+{
+  "monitor": "US chips",
+  "lists": [
+    { "name": "US chips", "symbols": ["NVDA", "AMD", "AVGO", "TSM", "ARM", "INTC"] },
+    { "name": "Indices", "symbols": ["^GSPC", "^IXIC", "^DJI", "^HSI", "^N225", "^VIX"] },
+    { "name": "FX and commodities", "symbols": ["EURUSD=X", "USDHKD=X", "USDJPY=X", "GC=F", "CL=F", "BTC-USD"] }
+  ]
+}

@@ -1,0 +1,101 @@
+EQUITY DESK - CUSTOMIZATION GUIDE WITH EXAMPLES
+===============================================
+
+This folder has working examples for everything you can customize. Open any file in a text editor
+(Notepad, VS Code...) to read how it works; every example is commented.
+
+    indicators\rsi.py            Python indicator, lower pane, one output, one input, guide lines
+    indicators\ma_cross.py       Python indicator, on the price chart, two outputs, two inputs
+    indicators\bollinger.c       C indicator, on the price chart, three outputs
+    indicators\volume_spike.c    C indicator, lower pane, drawn as a histogram
+    themes\ocean.html            HTML + CSS theme
+    themes\sunset.py             Python theme
+    themes\mono.c                C theme
+    watchlists\hk-tech.json      one watchlist to import
+    watchlists\watchlists.json   a full watchlists.json with three lists
+    watchlists\my-list.txt       text format: name:{ symbols }
+
+What you need: Python 3 (python.org) for .py files, and a C compiler (for example w64devkit, MSYS2 gcc or
+TCC) for .c files. HTML + CSS themes and .json files need nothing. If Python or the compiler is not on
+PATH, set its path in SET > Custom indicators.
+
+Safety: .py and .c files run as normal programs on your PC when you import them, like any program you
+start yourself. Only use files you wrote or trust. Custom UI themes can only change the look of the app.
+
+
+PART 1 - CUSTOM INDICATORS (tab 6 CUSTOM > Indicators)
+------------------------------------------------------
+Try it:
+  1. Press Ctrl+6, make sure "Indicators" is selected, click "Import .py or .c".
+  2. Pick indicators\rsi.py. It appears in the list.
+  3. Open a chart (Ctrl+3, or type NVDA and press F8), press / and choose the "Custom" group.
+     Click "RSI (example)". Tick "Default" in tab 6 to add it to new charts automatically.
+  4. Edit the file and press the reload button next to it in tab 6 to pick up your changes.
+
+How a file is built:
+  * Header lines (comments starting with @) describe it:
+        @name      the name shown in the app
+        @pane      overlay = on the price chart, separate = its own pane below
+        @outputs   names of the lines it returns (up to 8), e.g. "@outputs mid upper lower"
+        @param     an input and its default, one per line, e.g. "@param length 14"
+        @level     horizontal guide lines, e.g. "@level 30 70"
+        @plot      how to draw an output: line, hist, step or dots, e.g. "@plot ratio hist"
+        @palette   colours for an output, e.g. "@palette ratio #00c2ff #ff5c7a"
+  * Python: write  def compute(bars, params):
+        bars    dict of lists: time, open, high, low, close, volume (oldest first)
+        params  dict of your @param values, e.g. params["length"]
+        return  one list as long as the bars, a list of lists, or {"name": list}
+                use None where there is no value yet (numpy arrays also work)
+  * C: write  void compute(int n, const double *open, const double *high, const double *low,
+                           const double *close, const double *volume, const double *params,
+                           double **out)
+        params[0], params[1]...  your @param values in the order you wrote them
+        out[k][i]                output k at bar i; it starts as NAN (= no value)
+    The app compiles it once and keeps the compiled copy until you change the file.
+
+Make your own: copy rsi.py, change @name, change the maths, import it.
+
+
+PART 2 - CUSTOM UI THEMES (tab 6 CUSTOM > UI)
+---------------------------------------------
+Try it:
+  1. Press Ctrl+6 and click "UI".
+  2. Click "Import theme" and pick themes\ocean.html (or sunset.py, or mono.c).
+  3. The colours change at once. If any line was not allowed, the app lists it in red.
+  4. Edit the file and click "Reload file". "Reset to default" (or typing RESETUI) goes back.
+You can also just use the colour pickers, font, text size, corner slider and tab-order arrows on the page.
+
+What a theme can change: colours, font, text size (11-16), corner radius (0-10), gradients, small shadows,
+and the order of the nine tabs. It cannot rename, add or remove tabs, hide or move anything, add text,
+run scripts or load anything from the internet. Those lines are ignored.
+
+Three ways to write one:
+  * HTML + CSS (themes\ocean.html): put CSS in a <style> block. Set theme colours on :root, e.g.
+        :root { --amb: #00c2ff; --bg: #020b14; }
+    and add cosmetic rules, e.g.  .card2 { border-radius: 8px; }
+    Put "@name Your name" and "@tabs DESK MON ..." in a comment to name it and order the tabs.
+  * Python (themes\sunset.py) or C (themes\mono.c): print ONE line of JSON:
+        {"name": "...", "colors": {"amb": "#00c2ff"}, "font": "Consolas", "fontSize": 13,
+         "radius": 6, "tabs": ["DESK","MON","GP","FIN","NEWS","CUSTOM","NEW","SET","HELP"],
+         "css": "#fkeys button.on { background: #00c2ff; }"}
+    Every key is optional. Using code lets you compute colours (for example from one accent colour).
+
+Colour names: bg (background), panel, panel2 (panels), panel3 (inputs), line, line0, line2, line3
+(borders), ink, ink2 (text), hi, mut (muted text), amb (accent), amb2, yel (highlight), up, dn, blu (links),
+hdr (header bars), hdrInk (header text), tint, tint2.
+Tab names for "tabs": DESK, MON, GP, FIN, NEWS, CUSTOM, NEW, SET, HELP (or the numbers 1-9).
+Useful selectors: #fkeys button (tab buttons), #fkeys button.on (current tab), .btn (buttons),
+.card2 (cards), .logo (EQUITY DESK logo), .ph (screen title bars), table (tables).
+
+
+PART 3 - WATCHLISTS
+-------------------
+  * Import one list: in MON (Ctrl+2) click "Import .json" and pick watchlists\hk-tech.json; its symbols are
+    added to the list MON shows. In a watchlist panel, Import adds it as a new list.
+  * Text format: watchlists\my-list.txt makes two lists, "semis" and "hongkong" (700 becomes 0700.HK when
+    your primary market is Hong Kong).
+  * Your own file: MON > "Edit .json" opens your real watchlists.json. Compare it with
+    watchlists\watchlists.json, edit, save, and the app updates within 2 seconds.
+    "monitor" is the list MON shows. Symbols use Yahoo style: 0700.HK, 7203.T, ^GSPC, EURUSD=X, GC=F.
+  * Export .json saves {"name": ..., "symbols": [...]} so you can share or back up a list.
+

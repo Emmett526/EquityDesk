@@ -1,0 +1,36 @@
+<!doctype html>
+<!-- Example Custom UI theme (HTML + CSS): cool blue terminal.
+     Import it in Equity Desk: tab 6 CUSTOM > UI > Import theme.
+     Only the <style> part is used. Anything that is not a look change is ignored and listed.
+
+     @name Ocean (example)   @tabs DESK MON GP NEWS FIN CUSTOM NEW SET HELP
+-->
+<html>
+<head><meta charset="utf-8"><title>Ocean theme for Equity Desk</title>
+<style>
+/* Theme colours: set them on :root. Names: bg, panel, panel2, panel3, line, ink (text), mut (muted),
+   amb (accent), amb2, yel (highlight), up, dn, blu, hdr (header bars), hdrInk ... (see README) */
+:root {
+  --bg: #020b14;
+  --panel2: #071827;
+  --panel3: #0b2236;
+  --line: #12324d;
+  --ink: #e6f4ff;
+  --mut: #7fa3bf;
+  --amb: #00c2ff;
+  --amb2: #66dbff;
+  --yel: #7fffd4;
+  --up: #2ee6a6;
+  --dn: #ff5c7a;
+  --hdr: #0a2a44;
+}
+
+/* Extra touches: only colours, gradients, fonts, corners and small shadows are allowed */
+#fkeys button.on { background: linear-gradient(90deg, #00c2ff, #0077ff); color: #001018; }
+.card2 { border-radius: 8px; box-shadow: 0 0 6px #00c2ff55; }
+.btn { border-radius: 6px; }
+.logo { letter-spacing: 3px; text-shadow: 0 0 6px #00c2ff; }
+</style>
+</head>
+<body></body>
+</html>

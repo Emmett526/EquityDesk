@@ -1,0 +1,30 @@
+THIRD-PARTY NOTICES
+
+Equity Desk includes the open-source components below. Each keeps its own licence.
+
+Electron 33.2.1 and Chromium - MIT (see LICENSE) and the Chromium licences (see LICENSES.chromium.html).
+
+TradingView Lightweight Charts(TM) 5.1.0 - Apache License 2.0.
+  Copyright (c) 2025 TradingView, Inc. https://www.tradingview.com/
+  Charts show the TradingView attribution logo as the licence's NOTICE asks.
+  https://www.apache.org/licenses/LICENSE-2.0
+
+@stoqey/ib 1.6.10 - MIT                 (Interactive Brokers TWS / Gateway client)
+@tigeropenapi/tigeropen 0.5.5 - MIT     (Tiger Brokers quote client)
+@bufbuild/protobuf 2.16.0 - Apache-2.0 AND BSD-3-Clause
+ws 8.18.3 - MIT
+rxjs 7.8.2 - Apache-2.0
+tslib 2.8.1 - 0BSD
+eventemitter3 5.0.4 - MIT
+dotenv 17.4.2 - BSD-2-Clause
+colors 1.4.0 - MIT
+command-buffer 0.1.0 - MIT
+function-rate-limit 1.1.0 - MIT
+
+Downloaded only if you choose to (not included in the installer):
+  Longbridge OpenAPI SDK native module - fetched from npm on first use of the Longbridge order book.
+  Ollama - installed from ollama.com if you choose it; models are downloaded by Ollama:
+    Gemma 4 (Google) under the Gemma Terms of Use: https://ai.google.dev/gemma/terms
+    gpt-oss (OpenAI) under the Apache License 2.0.
+
+The full licence texts of the npm packages are in each package inside resources\app.asar.

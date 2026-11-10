@@ -1,0 +1,11 @@
+semis:{
+	NVDA
+	AMD
+	ARM
+	}
+
+hongkong:{
+	700
+	9988
+	3690
+	}

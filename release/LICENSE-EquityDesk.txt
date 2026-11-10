@@ -1,0 +1,29 @@
+EQUITY DESK - PERSONAL USE LICENCE
+
+Copyright (c) 2026 Emmett526. All rights reserved except as granted below.
+
+1. Permission. You may download, install and use Equity Desk, and share unchanged copies of it free of
+   charge, for your own personal, non-commercial purposes.
+
+2. No commercial use. You may not sell Equity Desk, charge for access to it, bundle it with a paid product
+   or service, use it to provide paid advice, signals or data, or use it inside a business, without the
+   author's written permission.
+
+3. No redistribution of changed copies. You may change the app's look through tab 6 (Custom UI) and add
+   your own custom indicators. You may not publish a modified version of the app itself.
+
+4. Research only. Equity Desk does not place orders and is not financial advice. You are responsible for
+   your own investment decisions.
+
+5. Third-party services. Data, news and AI models you connect to are provided by third parties under their
+   own terms, which you agree to follow. The author is not affiliated with them.
+
+6. Open-source parts. Components listed in THIRD-PARTY-NOTICES.txt, LICENSE and LICENSES.chromium.html
+   are licensed under their own terms, which take precedence for those components.
+
+7. No warranty. Equity Desk is provided "as is", without warranty of any kind, express or implied,
+   including fitness for a particular purpose, accuracy of data and non-infringement. To the extent
+   permitted by law, the author is not liable for any loss or damage, including trading or investment
+   losses, arising from its use.
+
+By installing or using Equity Desk you accept these terms.
