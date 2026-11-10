@@ -1,0 +1,10 @@
+node_modules/
+out/
+dist/
+*.zip
+*.exe
+*.asar
+__pycache__/
+*.pyc
+.env
+*.log
