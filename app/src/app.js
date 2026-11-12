@@ -8,7 +8,7 @@ const vol = n => n == null ? '-' : n >= 1e9 ? (n / 1e9).toFixed(2) + 'B' : n >= 
 const clean = s => String(s).trim().toUpperCase().replace(/[^A-Z0-9.\-^=]/g, '');
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
 const uid = p => p + Math.random().toString(36).slice(2, 8);
-let S = { provider: 'fmp-first', refreshSec: 20 }, watch = [], lastQuotes = [], picks = [], timer = null, view = 'desk', viewHist = [];
+let S = { refreshSec: 20 }, watch = [], lastQuotes = [], picks = [], timer = null, view = 'desk', viewHist = [];
 const say = (src, t) => { const now = Date.now(), last = t && now - t > 5 * 60e3 ? ` · last trade ${new Intl.DateTimeFormat('en-GB', { timeZone: 'America/New_York', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(t))} NY` : '';
   $('#srcline').textContent = src ? `${src} · updated ${fmtLocal(now)}${last}` : 'No data yet'; };
 const status = t => { $('#stMsg').textContent = t || ''; };
@@ -1179,7 +1179,7 @@ $('#it').onclick = async e => { const id = indRow(e), a = e.target.dataset.a; if
 // ---- settings ----
 async function showSettings() {
   $('#sProfile').innerHTML = PROF.done ? `${esc(PROF.name || 'No name set')}${PROF.loc ? ' · ' + esc(PROF.loc) : ''} · ${esc(localTz.replace(/_/g, ' '))} · primary market ${esc(PROF.market && EXCH[PROF.market] ? EXCH[PROF.market][0] : 'US')} · primary currency ${esc(myCcy())}` : 'Not set yet.';
-  S = await api.settings(); $('#sProv').value = S.provider; $('#sRef').value = S.refreshSec; $('#sPy').value = S.pythonPath || ''; $('#sCc').value = S.cCompiler || '';
+  S = await api.settings(); $('#sRef').value = S.refreshSec; $('#sPy').value = S.pythonPath || ''; $('#sCc').value = S.cCompiler || '';
   const nKeys = Object.values(S.has).filter(Boolean).length;
   $('#sSec').innerHTML = (S.encrypted ? '<span class="up">● Encryption is on.</span> Every API key and broker token (data, AI, order book) is stored only on this PC, in settings.json in your EquityDesk folder, encrypted with your Windows account (DPAPI), so another user or another PC cannot read it. '
       : '<span class="dn">● Windows secure storage is not available,</span> so keys you enter are kept in memory only, never written to disk, and forgotten when the app closes. ')
@@ -1187,6 +1187,7 @@ async function showSettings() {
     + `<b>${nKeys} key${nKeys === 1 ? '' : 's'} saved.</b>`;
   const st = k => S.has[k] ? (S.sessionOnly.includes(k) ? '(saved until you close the app)' : '(a key is saved, encrypted)') : '(none saved)';
   $('#keyState').textContent = st('fmpKey'); $('#aKeyState').textContent = st('anthropicKey');
+  const fu = S.fmpUsage || { calls: 0, limit: 250, cached: 0 }; $('#fmpUse').textContent = `FMP calls today: ${fu.calls} of ${fu.limit} · ${fu.cached} companies saved`;
   document.querySelectorAll('[data-state]').forEach(x => { const k = x.dataset.state; x.textContent = k === 'schwabRefresh' ? (S.has[k] ? '(signed in)' : '(not signed in)') : st(k); });
   ['#sKey', '#sAKey', '#sOKey', '#sSchCode'].forEach(x => { $(x).value = ''; }); document.querySelectorAll('[data-secret]').forEach(x => { x.value = ''; });
   $('#sTheme').value = themePref;
@@ -1214,7 +1215,7 @@ $('#sAi').onchange = aiFields; $('#sDepth').onchange = depthFields; $('#sTv').on
 const smsg = (t, cls) => { $('#sMsg').textContent = t; $('#sMsg').className = 'small ' + (cls || ''); };
 async function saveSettings(extra) {
   const pv = $('#sAi').value, oai = OAI_IDS().includes(pv);
-  const p = { provider: $('#sProv').value, refreshSec: +$('#sRef').value, pythonPath: $('#sPy').value, cCompiler: $('#sCc').value, aiProvider: pv, claudeModel: $('#sCm').value,
+  const p = { refreshSec: +$('#sRef').value, pythonPath: $('#sPy').value, cCompiler: $('#sCc').value, aiProvider: pv, claudeModel: $('#sCm').value,
     ollamaUrl: $('#sOu').value, ollamaModel: $('#sOm').value, ibkrDepth: $('#sIb').checked, depthSource: $('#sDepth').value, ibVenue: $('#sIbV').value, ibHost: $('#sIbH').value, ibPort: $('#sIbP').value, ibClientId: $('#sIbC').value,
     futuHost: $('#sFuH').value, futuPort: $('#sFuP').value, tigerId: $('#sTgId').value, tigerLicense: $('#sTgLic').value, schwabCallback: $('#sSchCb').value, tvFeed: $('#sTv').value, obFeed: $('#sOb').value, clocks: [...document.querySelectorAll('#sClocks input:checked')].map(x => x.dataset.clk), secrets: {} };
   if (oai) { p.aiModels = { [pv]: $('#sOModel').value }; if (!$('#sOUrl').hidden) p.aiUrls = { [pv]: $('#sOUrl').value }; if ($('#sOKey').value) p.secrets['ai_' + pv] = $('#sOKey').value; }

@@ -1,7 +1,43 @@
 'use strict';
 // Company financials for the FIN screen (TradingView-style Financials): statements, estimates, earnings, dividends, segments.
 // Yahoo Finance (no key) for almost everything; segments come from FMP when a key is saved. Runs in the main process.
+// FMP's free plan allows 250 calls a day, so FMP is used only here (never for quotes or charts), each answer is kept
+// on disk for 7 days in fmp-cache.json, calls are counted per day and the app stops at FMP_STOP to leave a margin.
 const provider = require('./provider');
+const fs = require('fs'), path = require('path');
+const FMP_LIMIT = 250, FMP_STOP = 240, SEG_TTL = 7 * 864e5, SEG_KEEP = 30 * 864e5;
+const today = () => new Date().toISOString().slice(0, 10);   // FMP counts calls per UTC day
+function fmpLoad(dir) {
+  let j = null; try { j = JSON.parse(fs.readFileSync(path.join(dir, 'fmp-cache.json'), 'utf8')); } catch (e) {}
+  if (!j || typeof j !== 'object') j = {}; if (!j.seg || typeof j.seg !== 'object') j.seg = {};
+  if (j.day !== today()) { j.day = today(); j.calls = 0; }
+  return j;
+}
+function fmpSave(dir, j) {
+  try { const now = Date.now(); for (const k in j.seg) if (!(now - j.seg[k].t < SEG_KEEP)) delete j.seg[k];
+    fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, 'fmp-cache.json'), JSON.stringify(j)); } catch (e) {}
+}
+function fmpUsage(dir) { const j = fmpLoad(dir); return { calls: j.calls || 0, limit: FMP_LIMIT, stop: FMP_STOP, cached: Object.keys(j.seg).length }; }
+function fmpCount(dir, n) {   // returns false (and counts nothing) when today's budget is used up
+  const j = fmpLoad(dir); if ((j.calls || 0) + n > FMP_STOP) return false;
+  j.calls = (j.calls || 0) + n; fmpSave(dir, j); return true;
+}
+const usOnly = s => !/[.^=]/.test(s);   // Yahoo-style suffixes (0700.HK, ^GSPC, EURUSD=X) are not on FMP's free plan
+async function segments(sym, s) {
+  const dir = s.dataDir, out = { product: [], geo: [], note: '', cached: false };
+  if (!usOnly(sym)) { out.note = 'Revenue by business and by region comes from Financial Modeling Prep, whose free plan covers US stocks only.'; return out; }
+  const hit = dir ? fmpLoad(dir).seg[sym] : null;
+  if (hit && Date.now() - hit.t < SEG_TTL) return { product: hit.product || [], geo: hit.geo || [], note: hit.note || '', cached: true, t: hit.t };
+  if (dir && !fmpCount(dir, 2)) {
+    if (hit) return { product: hit.product || [], geo: hit.geo || [], note: hit.note || '', cached: true, t: hit.t };
+    out.note = `Today's FMP calls are used up (${FMP_STOP} of ${FMP_LIMIT}, a few are kept spare). Segments load again tomorrow; everything else in FIN still works.`; return out;
+  }
+  const [p, gg] = await Promise.allSettled([fmpSeg(sym, s.fmpKey, 'product'), fmpSeg(sym, s.fmpKey, 'geographic')]);
+  out.product = p.value || []; out.geo = gg.value || [];
+  if (p.status === 'rejected' && gg.status === 'rejected') { out.note = 'FMP: ' + String(p.reason.message || p.reason); if (hit) return { product: hit.product || [], geo: hit.geo || [], note: '', cached: true, t: hit.t }; return out; }
+  if (dir) { const j = fmpLoad(dir); j.seg[sym] = { t: Date.now(), product: out.product, geo: out.geo, note: out.note }; fmpSave(dir, j); }
+  return out;
+}
 
 // statement rows: [Yahoo timeseries name, label, statement, kind]  kind: money | eps | shares
 const ROWS = [
@@ -85,10 +121,9 @@ async function fin(sym, s) {
   const v = shape(sym, sm.value || {}, an.value || EMPTY_TS, qt.value || EMPTY_TS, mo.value || { px: [], div: [] });
   v.errors = [sm, an, qt, mo].map((x, i) => x.status === 'rejected' ? ['profile & estimates', 'annual statements', 'quarterly statements', 'price & dividend history'][i] + ': ' + String(x.reason && x.reason.message || x.reason).slice(0, 100) : null).filter(Boolean);
   v.segments = { product: [], geo: [], note: '' };
-  if (s && s.fmpKey) { const [p, gg] = await Promise.allSettled([fmpSeg(sym, s.fmpKey, 'product'), fmpSeg(sym, s.fmpKey, 'geographic')]);
-    v.segments.product = p.value || []; v.segments.geo = gg.value || []; if (p.status === 'rejected' && gg.status === 'rejected') v.segments.note = 'FMP: ' + String(p.reason.message || p.reason); }
+  if (s && s.fmpKey) v.segments = await segments(sym, s);
   else v.segments.note = 'Revenue by business and by region comes from Financial Modeling Prep. Save an FMP key in SET to see it.';
-  v.src = 'Yahoo Finance' + (s && s.fmpKey ? ' · FMP (segments)' : ''); v.time = Date.now();
+  v.src = 'Yahoo Finance' + (s && s.fmpKey && (v.segments.product.length || v.segments.geo.length) ? (v.segments.cached ? ' · FMP (segments, saved copy)' : ' · FMP (segments)') : ''); v.time = Date.now();
   cache.set(sym, { t: Date.now(), v }); return v;
 }
 
@@ -122,4 +157,4 @@ function mock(sym) {
   v.segments = { product: [0, 1, 2].map(i => ({ year: String(y0 + 4 - i), data: [['Data center', base * 0.6], ['Gaming', base * 0.25], ['Automotive', base * 0.1], ['Other', base * 0.05]] })), geo: [{ year: String(y0 + 4), data: [['United States', base * 0.5], ['China', base * 0.2], ['Taiwan', base * 0.15], ['Other countries', base * 0.15]] }], note: '' };
   v.src = 'Mock data'; v.errors = []; v.time = Date.now(); return v;
 }
-module.exports = { fin, ROWS };
+module.exports = { fin, ROWS, fmpUsage, fmpCount, segments };

@@ -68,7 +68,7 @@ function settings() {            // includes the decrypted keys; never sent to t
 function publicSettings() {
   const s = settings(), out = { provider: s.provider, refreshSec: s.refreshSec, ibkrDepth: s.ibkrDepth, encrypted: canEncrypt(), aiModels: s.aiModels, aiUrls: s.aiUrls, clocks: s.clocks,
     has: Object.fromEntries(SECRETS.map(k => [k, !!s[k]])), sessionOnly: Object.keys(sessionSecrets), providers: ai.PROVIDERS, oaiDefaults: Object.fromEntries(AI_IDS.map(k => [k, ai.OAI[k].model])) };
-  out.hasKey = out.has.fmpKey; out.hasAnthropicKey = out.has.anthropicKey;
+  out.hasKey = out.has.fmpKey; out.hasAnthropicKey = out.has.anthropicKey; out.fmpUsage = finData.fmpUsage(dir());
   for (const k in PLAIN) out[k] = s[k]; return out;
 }
 
@@ -169,7 +169,7 @@ ipcMain.handle('keys:folder', () => { shell.openPath(dir()); return true; });
 ipcMain.handle('key:test', async (_e, which) => {   // checks a saved key against its service; the key itself never leaves this process
   const s = settings();
   try {
-    if (which === 'fmpKey') { if (!s.fmpKey) return { ok: false, msg: 'No FMP key saved.' }; const q = await provider.testFmp(s.fmpKey); return { ok: true, msg: `FMP OK: AAPL ${q.price}` }; }
+    if (which === 'fmpKey') { if (!s.fmpKey) return { ok: false, msg: 'No FMP key saved.' }; if (!finData.fmpCount(dir(), 1)) return { ok: false, msg: "Today's FMP calls are used up; try again tomorrow." }; const n = await provider.testFmp(s.fmpKey); return { ok: true, msg: `FMP OK: ${n}` }; }
     if (which === 'tvKey' || which === 'obKey') { if (!s[which]) return { ok: false, msg: 'No Databento key saved for this feed.' }; const r = await require('./dbdepth').test(s[which], which === 'tvKey' ? 'XNAS.ITCH' : 'XNYS.PILLAR'); return { ok: true, msg: 'Databento OK: ' + r }; }
     const B = require('./brokers').BROKERS[which];
     if (B) { const r = await B.test(s); return { ok: true, msg: B.name + ' OK: ' + r }; }

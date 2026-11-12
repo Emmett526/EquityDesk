@@ -1,7 +1,7 @@
 'use strict';
 // Market data with fallback. Runs in the main process (no CORS, key never reaches the page).
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) EquityDesk/1.0';
-const RANGES = {            // range -> [yahoo range, yahoo interval, fmp kind]
+const RANGES = {            // range -> [yahoo range, yahoo interval, unused]
   '1D': ['1d', '5m', '5min'], '5D': ['5d', '15m', '15min'], '1M': ['1mo', '1h', '1hour'],
   '3M': ['3mo', '1d', 'eod'], '6M': ['6mo', '1d', 'eod'], '1Y': ['1y', '1d', 'eod'],
   '5Y': ['5y', '1wk', 'eod']
@@ -93,53 +93,16 @@ async function yahooBook(sym) {
   throw new Error('Yahoo refused the quote request');
 }
 
-// ---------- FMP (stable API) ----------
-const FMP = 'https://financialmodelingprep.com/stable';
-async function fmpQuote(sym, key) {
-  const j = await getJson(`${FMP}/quote?symbol=${encodeURIComponent(sym)}&apikey=${key}`);
-  const q = Array.isArray(j) ? j[0] : null;
-  if (!q || q.price == null) throw new Error('FMP: no quote (' + (j && (j['Error Message'] || j.message) || 'empty') + ')');
-  return { symbol: sym, price: num(q.price), prev: num(q.previousClose), chg: num(q.change),
-    pct: num(q.changePercentage ?? q.changesPercentage), high: num(q.dayHigh), low: num(q.dayLow),
-    vol: num(q.volume), currency: 'USD', time: q.timestamp ? q.timestamp * 1000 : Date.now(), src: 'FMP' };
-}
-async function fmpBars(sym, rg, key, iv) {
-  const kind = IVS[iv][2], toIso = d => d.toISOString().slice(0, 10);
-  if (!kind) throw new Error('FMP has no ' + iv + ' bars');
-  let rows;
-  if (kind === 'eod') {
-    const to = new Date(), from = new Date(Date.now() - DAYS[rg] * 864e5);
-    rows = await getJson(`${FMP}/historical-price-eod/full?symbol=${encodeURIComponent(sym)}&from=${toIso(from)}&to=${toIso(to)}&apikey=${key}`);
-  } else {
-    const from = new Date(Date.now() - (DAYS[rg] + 3) * 864e5);
-    rows = await getJson(`${FMP}/historical-chart/${kind}?symbol=${encodeURIComponent(sym)}&from=${toIso(from)}&to=${toIso(new Date())}&apikey=${key}`);
-  }
-  if (!Array.isArray(rows) || !rows.length) throw new Error('FMP: empty series');
-  let out = rows.map(x => ({ time: Math.floor(Date.parse(String(x.date).replace(' ', 'T') + (String(x.date).length > 10 ? 'Z' : 'T00:00:00Z')) / 1000),
-    open: +x.open, high: +x.high, low: +x.low, close: +x.close, volume: +(x.volume || 0) })).filter(b => b.time && b.close);
-  out.sort((a, b) => a.time - b.time);
-  if (kind !== 'eod') { const last = out[out.length - 1].time; out = out.filter(b => last - b.time < DAYS[rg] * 86400); }
-  if (iv === 'W' || iv === 'M') { const g = new Map(); out.forEach(b => { const d = new Date(b.time * 1000), k = iv === 'M' ? d.getUTCFullYear() * 12 + d.getUTCMonth() : Math.floor((b.time / 86400 + 3) / 7);
-    const c = g.get(k); if (!c) g.set(k, { ...b }); else { c.high = Math.max(c.high, b.high); c.low = Math.min(c.low, b.low); c.close = b.close; c.volume += b.volume; } }); out = [...g.values()]; }
-  return out;
-}
+// ---------- FMP ----------
+// Since beta 1.0.1 FMP is never used for quotes or charts: the free plan allows 250 calls a day, which live
+// refreshes would use up in minutes. Quotes and bars always come from Yahoo; FMP is used only by fin.js.
+const testFmp = async key => {
+  const j = await getJson(`https://financialmodelingprep.com/stable/profile?symbol=AAPL&apikey=${key}`);
+  const p = Array.isArray(j) ? j[0] : null;
+  if (!p || !p.companyName) throw new Error('FMP: ' + (j && (j['Error Message'] || j.message) || 'empty reply'));
+  return p.companyName;
+};
 
-// ---------- public API ----------
-function order(settings) {
-  const hasKey = !!settings.fmpKey;
-  const pref = settings.provider || 'fmp-first';
-  if (pref === 'yahoo') return ['yahoo'];
-  if (pref === 'fmp') return hasKey ? ['fmp'] : [];
-  return hasKey ? ['fmp', 'yahoo'] : ['yahoo'];
-}
-async function tryChain(settings, fy, ff) {
-  const errs = [];
-  for (const p of order(settings)) {
-    try { return p === 'fmp' ? await ff(settings.fmpKey) : await fy(); }
-    catch (e) { const m = (e.message || e).toString(); errs.push(p + ': ' + (settings.fmpKey ? m.split(settings.fmpKey).join('***') : m)); }
-  }
-  throw new Error(errs.join(' | ') || 'no provider available (add an FMP key or choose Yahoo)');
-}
 // Offline demo/test mode: set EQUITY_MOCK=1 (synthetic random-walk data, clearly labelled "Mock").
 function mockSeed(sym) { let h = 7; for (const c of sym) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; }
 function mockBars(sym, n, step) { let x = mockSeed(sym), p = 50 + (x % 400); const rnd = () => (x = (x * 1664525 + 1013904223) >>> 0) / 4294967296, out = [], now = Math.floor(Date.now() / 1000);
@@ -147,14 +110,14 @@ function mockBars(sym, n, step) { let x = mockSeed(sym), p = 50 + (x % 400); con
 async function quotes(symbols, settings) {
   if (process.env.EQUITY_MOCK) return symbols.map(clean).filter(Boolean).map(s => { const b = mockBars(s, 160, 86400), l = b[b.length - 1], pr = b[b.length - 2].close; return { symbol: s, price: l.close, prev: pr, chg: l.close - pr, pct: (l.close / pr - 1) * 100, high: l.high, low: l.low, vol: l.volume, src: 'Mock', time: Date.now() }; });
   const syms = [...new Set(symbols.map(clean).filter(Boolean))].slice(0, 60);
-  const res = await Promise.all(syms.map(s => tryChain(settings, () => yahooQuote(s), k => fmpQuote(s, k))
+  const res = await Promise.all(syms.map(s => yahooQuote(s)
     .catch(e => ({ symbol: s, error: String(e.message || e) }))));
   return res;
 }
 async function bars(symbol, range, settings, interval) {
   const s = clean(symbol), { range: rg, iv } = plan(range, interval);
   if (process.env.EQUITY_MOCK) { const step = IVS[iv][1]; return { symbol: s, range: rg, iv, bars: mockBars(s, Math.max(20, Math.min(400, Math.round(step >= 86400 ? DAYS[rg] * 86400 * 0.69 / step : DAYS[rg] * 23400 / step))), step) }; }
-  const data = await tryChain(settings, () => yahooBars(s, rg, iv), k => fmpBars(s, rg, k, iv));
+  const data = await yahooBars(s, rg, iv);
   return { symbol: s, range: rg, iv, bars: data };
 }
 // latest trade for second charts (built live from ticks): light v7 quote call
@@ -269,5 +232,4 @@ async function fx(pairs) {
   return out;
 }
 
-const testFmp = key => fmpQuote('AAPL', key);
 module.exports = { tick, plan, IVS, quotes, bars, book, clean, RANGES, stats, fx, callGreeks, testFmp, yJson, UA };

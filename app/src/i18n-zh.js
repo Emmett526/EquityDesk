@@ -9,7 +9,7 @@ window.I18N_ZH = {
   'NVDA <F8> GP · SPX <F10> · NVDA BOOK · AI · HELP': 'NVDA <F8> GP · SPX <F10> · NVDA BOOK · AI · HELP（輸入指令）',
   'RESEARCH ONLY · NO ORDER ENTRY · DATA MAY BE DELAYED': '只供研究 · 不設落盤 · 數據或有延遲',
   'US MKT CLOSED': '美股已收市', 'US MKT OPEN': '美股開市中',
-  'Version': '版本', 'Equity Desk Beta 1.0 (1.0.0-beta.1). See CHANGELOG.md in the source for what changed': 'Equity Desk Beta 1.0（1.0.0-beta.1）。更改內容見原始碼中的 CHANGELOG.md',
+  'Version': '版本', 'Equity Desk Beta 1.0.1 (1.0.0-beta.2). See CHANGELOG.md in the source for what changed': 'Equity Desk Beta 1.0.1（1.0.0-beta.2）。更改內容見原始碼中的 CHANGELOG.md',
   // DESK
   'Market overview': '市場概覽', '✦ AI market brief': '✦ AI 市場簡報', 'Open picks.json': '開啟 picks.json',
   'AI briefing on what is moving, using the app\'s own data': '用程式本身的數據，由 AI 簡報市場動向',
@@ -118,7 +118,7 @@ window.I18N_ZH = {
   // SET
   'API keys and privacy': 'API 金鑰及私隱', 'Show settings folder': '顯示設定資料夾', 'Remove all keys': '移除所有金鑰', 'Edit profile': '編輯個人資料',
   'Reset DESK (tab 1) to default': '還原 DESK（分頁 1）預設', 'Data providers': '數據來源', 'Order': '次序', 'FMP first, Yahoo fallback': '先用 FMP，後備 Yahoo', 'Yahoo only': '只用 Yahoo',
-  'FMP only': '只用 FMP', 'FMP API key': 'FMP API 金鑰', 'Test': '測試', 'The free FMP plan covers US stocks only; other markets fall back to Yahoo.': '免費 FMP 計劃只涵蓋美股；其他市場改用 Yahoo。',
+  'FMP only': '只用 FMP', 'Quotes, charts, MON and DESK use Yahoo Finance (free, no key needed).': '報價、圖表、MON 及 DESK 使用 Yahoo Finance（免費，毋須金鑰）。', 'FMP is used only for FIN (revenue by business and region), never for live prices or charts, so the free plan\'s 250 calls a day last. Each company\'s answer is saved for 7 days. The free plan covers US stocks only.': 'FMP 只用於 FIN（按業務及地區劃分的收入），絕不用於即時價格或圖表，因此免費計劃每日 250 次呼叫足夠使用。每間公司的資料會保存 7 天。免費計劃只涵蓋美股。', 'Revenue by business and by region comes from Financial Modeling Prep. Save an FMP key in SET to see it.': '按業務及地區劃分的收入來自 Financial Modeling Prep。請在 SET 儲存 FMP 金鑰以查看。', 'Revenue by business and by region comes from Financial Modeling Prep, whose free plan covers US stocks only.': '按業務及地區劃分的收入來自 Financial Modeling Prep，其免費計劃只涵蓋美股。', "Today's FMP calls are used up; try again tomorrow.": '今日的 FMP 呼叫次數已用完，請明天再試。', 'FMP API key': 'FMP API 金鑰', 'Test': '測試', 'The free FMP plan covers US stocks only; other markets fall back to Yahoo.': '免費 FMP 計劃只涵蓋美股；其他市場改用 Yahoo。',
   'Refresh every (seconds)': '重新整理間隔（秒）', 'Appearance': '外觀', 'Theme': '主題', 'Dark (terminal)': '深色（終端機）', 'Light': '淺色', 'Follow Windows': '跟隨 Windows',
   'Same indicators on every chart (the last ones you used, saved for new charts too)': '所有圖表使用相同指標（即最近使用的指標，亦會套用到新圖表）',
   'Clocks at the top right': '右上角時鐘', 'Custom indicators': '自訂指標', 'Python command (blank = auto: py -3, python)': 'Python 指令（留空 = 自動：py -3、python）',
@@ -226,7 +226,7 @@ window.I18N_ZH = {
   'Tabs': '分頁', 'Ctrl+1 DESK · 2 MON · 3 GP · 4 FIN · 5 NEWS · 6 CUSTOM (custom indicators and custom UI) · 7 new tab (coming soon) · 8 SET · 9 HELP': 'Ctrl+1 DESK · 2 MON · 3 GP · 4 FIN · 5 NEWS · 6 CUSTOM（自訂指標及自訂介面）· 7 新分頁（即將推出）· 8 SET · 9 HELP',
   'Custom UI (tab 6 > UI): colour pickers, font, text size, corner radius and tab order, or import a theme written in Python, C or HTML+CSS. Cosmetic only: the nine tabs and every function stay, tabs can only be moved, and anything that is not a look change is ignored and listed. RESETUI puts the standard look back': '自訂介面（分頁 6 > 介面）：顏色選擇器、字型、文字大小、圓角半徑及分頁次序，或匯入用 Python、C 或 HTML+CSS 編寫的主題。只改外觀：九個分頁及所有功能保持不變，分頁只可調動次序，任何非外觀的改動都會被忽略並列出。RESETUI 可還原標準外觀',
   'Watchlist .json': '觀察名單 .json', 'Export .json saves a list as { "name": "Main", "symbols": ["ARM", "NVDA"] }; Import .json reads that, Equity Desk exports or plain arrays of symbols. Works in MON and in the watchlist panel': '匯出 .json 會把名單儲存為 { "name": "Main", "symbols": ["ARM", "NVDA"] }；匯入 .json 可讀取這格式、Equity Desk 匯出檔或純代號陣列。MON 及觀察名單面板均適用',
-  'Company financials like TradingView (Ctrl+4): Overview, Statements (income, balance sheet, cash flow), Statistics (valuation, profitability, liquidity, solvency, per share), Estimates (analyst rating, price target, EPS and revenue forecasts), Dividends, Earnings (reported vs estimate, surprise) and Segments (by business and country; needs an FMP key). Annual / Quarterly switch. NVDA ERN, NVDA DVD, NVDA EE open those sub-tabs': '類似 TradingView 的公司財務（Ctrl+4）：概覽、財務報表（損益、資產負債、現金流）、統計數據（估值、盈利能力、流動性、償債能力、每股）、預測（分析師評級、目標價、每股盈利及收入預測）、股息、盈利（公佈對預測、驚喜）及業務分部（按業務及國家；需要 FMP 金鑰）。可切換年度／季度。NVDA ERN、NVDA DVD、NVDA EE 開啟相應子分頁',
+  'Company financials like TradingView (Ctrl+4): Overview, Statements (income, balance sheet, cash flow), Statistics (valuation, profitability, liquidity, solvency, per share), Estimates (analyst rating, price target, EPS and revenue forecasts), Dividends, Earnings (reported vs estimate, surprise) and Segments (by business and country; needs an FMP key, used only here and saved for 7 days). Annual / Quarterly switch. NVDA ERN, NVDA DVD, NVDA EE open those sub-tabs': '類似 TradingView 的公司財務（Ctrl+4）：概覽、財務報表（損益、資產負債、現金流）、統計數據（估值、盈利能力、流動性、償債能力、每股）、預測（分析師評級、目標價、每股盈利及收入預測）、股息、盈利（公佈對預測、驚喜）及業務分部（按業務及國家；需要 FMP 金鑰，只在此使用並保存 7 天）。可切換年度／季度。NVDA ERN、NVDA DVD、NVDA EE 開啟相應子分頁',
   'Levels & sessions': '價位及時段',
   'Indicator library group with previous day / week / month high, low and close, session separator lines, Pivot Points Standard (Traditional, Fibonacci, Woodie, Classic, DeMark, Camarilla by day / week / month / quarter / year), CPR, daily / weekly / monthly open, opening range breakout, Asia / London / New York session highs and lows, 52-week and all-time high / low, round numbers, ADR levels, week / month VWAP, volume profile POC / VAH / VAL, unfilled gaps, daily MA on intraday charts, golden / death cross, candlestick patterns and inside / outside bars. Days follow the exchange\'s own time zone': '指標庫分組，包括前日／週／月高、低及收市價、時段分隔線、標準樞軸點（傳統、斐波那契、Woodie、經典、DeMark、Camarilla，按日／週／月／季／年）、CPR、日／週／月開市價、開市區間突破、亞洲／倫敦／紐約時段高低位、52 週及歷史高／低位、整數關口、ADR 水平、週／月 VWAP、成交量分佈 POC / VAH / VAL、未回補裂口、即日圖上的日線 MA、黃金／死亡交叉、陰陽燭形態及內包／外包K線。日子按交易所本身的時區計算',
   'Profile': '個人資料', 'Asked on first launch, change in SET > Profile: name, primary market (clocks, DESK order, starter MON list), location, time zone (all times and the local clock) and primary currency': '首次啟動時詢問，可在 SET > 個人資料 更改：名字、主要市場（時鐘、DESK 次序、初始 MON 名單）、所在地、時區（所有時間及本地時鐘）及主要貨幣',
@@ -376,6 +376,9 @@ window.I18N_ZH = {
     [/^Theme: (.+) \(from (.+)\)$/, '主題：$1（來自 $2）'],
     [/^Pick a (.+) from the list \(type part of it and choose a match\)\.$/, (m, T) => '請從清單選擇' + m[1].split(', ').map(T).join('、') + '（輸入部分文字再選擇相符項目）。'],
     [/^(.+) Inc \(mock\)$/, '$1 Inc（模擬）'],
-    [/^Call (\S+) exp (\S+)$/, '認購期權 $1 · $2 到期']
+    [/^Call (\S+) exp (\S+)$/, '認購期權 $1 · $2 到期'],
+    [/^FMP calls today: (\d+) of (\d+) · (\d+) companies saved$/, '今日 FMP 呼叫：$1 / $2 · 已保存 $3 間公司'],
+    [/^Today's FMP calls are used up \((\d+) of (\d+), a few are kept spare\)\. Segments load again tomorrow; everything else in FIN still works\.$/, '今日的 FMP 呼叫次數已用完（$1 / $2，保留少量備用）。業務分部明天會再載入；FIN 其他部分照常運作。'],
+    [/^FMP OK: (.+)$/, 'FMP 正常：$1']
   ];
 })();
