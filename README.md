@@ -1,6 +1,6 @@
 # Equity Desk
 
-**Version: Beta 1.0 (`1.0.0-beta.1`)** · by Emmett526
+**Version: Beta 1.0.1 (`1.0.0-beta.2`)** · by Emmett526
 
 A Bloomberg-style equity research terminal for Windows, built with Electron. It has:
 
@@ -34,7 +34,7 @@ API keys are never stored in this repo. The app saves them encrypted on the user
 
 ## Versioning
 
-Releases use [semantic versioning](https://semver.org). Beta releases are `1.0.0-beta.N`, shown in the app as "Beta 1.0". The first stable release will be `1.0.0`. See `CHANGELOG.md`.
+Releases use [semantic versioning](https://semver.org). Beta releases are `1.0.0-beta.N`, shown in the app as "Beta 1.0", "Beta 1.0.1" and so on. The first stable release will be `1.0.0`. See `CHANGELOG.md`.
 
 ## Licence
 
