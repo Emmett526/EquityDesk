@@ -2,6 +2,16 @@
 
 Versions follow [semantic versioning](https://semver.org). Beta releases are numbered `1.0.0-beta.N`.
 
+## Beta 1.0.1 (1.0.0-beta.2) - 2026-11-10
+
+- FMP (Financial Modeling Prep) is now used only for FIN data (revenue by business and region), never for live quotes, charts, MON or DESK, so the free plan's 250 calls a day are no longer used up by refreshes
+- Quotes and charts always come from Yahoo Finance; the "FMP first / Yahoo only / FMP only" setting is gone
+- FMP answers are saved on your PC for 7 days (fmp-cache.json in the settings folder), so opening the same company again costs no calls
+- FMP calls are counted per day, shown in SET > Data providers, and the app stops at 240 to keep a margin; FIN keeps working from Yahoo and saved copies
+- Non-US symbols (for example 0700.HK) no longer call FMP, since the free plan covers US stocks only
+- The FMP key test uses one call to the company profile instead of a live quote
+- Licence rule 1 reworded: personal, non-commercial download, install and use (the line about sharing copies was removed)
+
 ## Beta 1.0 (1.0.0-beta.1) - 2026-11-10
 
 First public beta. Earlier builds were internal development versions.
