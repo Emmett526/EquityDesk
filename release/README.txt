@@ -1,6 +1,6 @@
 EQUITY DESK BETA 1.0 - READ ME
 ==============================
-Version 1.0.0-beta.1. This is a beta: expect rough edges, and please report problems.
+Version 1.0.0-beta.2 (Beta 1.0.1). This is a beta: expect rough edges, and please report problems.
 
 
 1. RESEARCH ONLY, NOT TRADING
@@ -12,7 +12,7 @@ financial advice. You make your own decisions and carry your own risk.
 
 2. INSTALL AND START
 --------------------
-Run EquityDesk-Setup-1.0.0-beta.1.exe (no admin needed). If SmartScreen warns: More info > Run anyway.
+Run EquityDesk-Setup-1.0.0-beta.2.exe (no admin needed). If SmartScreen warns: More info > Run anyway.
 Or unzip the portable version and run EquityDesk.exe.
 First launch asks for the display language (English, or Traditional Chinese for Hong Kong), a display name, primary market, location, time zone, primary currency and a free
 AI model (Gemma 4 or gpt-oss through Ollama). Change them later in SET > Profile and SET > AI assistant;
@@ -34,6 +34,7 @@ Open it from SET > API keys and privacy > Show settings folder.
     profile.json      name, market, time zone, currency
     skin.json         your Custom UI theme
     lang.json         display language
+    fmp-cache.json    saved FMP answers (7 days) and today's FMP call count
     indicators\       copies of your custom indicators
 
 API keys (FMP, Databento, AI providers, brokers) are stored only in settings.json on this PC, encrypted
@@ -42,6 +43,9 @@ cannot decrypt them. Keys are decrypted only inside the app's background process
 window, are kept out of logs, error messages and exports, and each key is only sent to the service it
 belongs to. If Windows secure storage is unavailable, keys are kept in memory only and forgotten when the
 app closes. SET > API keys and privacy shows the status and has "Remove all keys".
+
+Data sources: quotes, charts, MON and DESK use Yahoo Finance (free, no key). An FMP key is optional and is
+used only for FIN revenue segments, never for live data, so the free plan's 250 calls a day last.
 
 4. WATCHLISTS (watchlists.json)
 -------------------------------

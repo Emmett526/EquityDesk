@@ -2,8 +2,7 @@ EQUITY DESK - PERSONAL USE LICENCE
 
 Copyright (c) 2026 Emmett526. All rights reserved except as granted below.
 
-1. Permission. You may download, install and use Equity Desk, and share unchanged copies of it free of
-   charge, for your own personal, non-commercial purposes.
+1. Permission. You may download, install and use Equity Desk for your own personal, non-commercial purposes.
 
 2. No commercial use. You may not sell Equity Desk, charge for access to it, bundle it with a paid product
    or service, use it to provide paid advice, signals or data, or use it inside a business, without the
