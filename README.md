@@ -13,6 +13,28 @@ A Bloomberg-style equity research terminal for Windows, built with Electron. It 
 
 Research only: no order entry or paper trading.
 
+## FMP key (optional)
+
+An FMP (Financial Modeling Prep) key adds revenue by business and by region to **FIN > Segments**. Everything else works without it: quotes, charts, MON and DESK always use Yahoo Finance, which is free and needs no key.
+
+**Get a key and add it**
+
+1. Go to [financialmodelingprep.com](https://site.financialmodelingprep.com/) and sign up for the free Basic plan.
+2. Sign in, open your Dashboard and copy your API key.
+3. In Equity Desk open **SET** (Ctrl+8) > **Data providers** and paste the key into **FMP API key**.
+4. Press **Save** at the bottom of SET. The key is encrypted and stored only on your PC.
+5. Press **Test** next to the key. "FMP OK: Apple Inc." means it works (the test uses 1 call).
+6. Open a US stock in FIN, for example type `NVDA FA`, then choose the **Segments** tab.
+
+**Free plan limits**
+
+- 250 calls a day, reset every day at midnight UTC (8:00 am Hong Kong time).
+- FMP is used only for FIN segments, never for live prices or charts, so refreshes cost nothing.
+- Each new company costs 2 calls. Its answer is saved for 7 days, so opening it again is free.
+- The app stops at 240 calls a day to keep a margin. The rest of FIN keeps working.
+- The free plan covers US stocks only, so non-US tickers such as `0700.HK` never use a call.
+- SET > Data providers shows how many calls you've used today. **Remove** deletes the key.
+
 ## Layout
 
 - `app/` Electron app source (`src/`, `vendor/lwc.js`, `package.json`)
