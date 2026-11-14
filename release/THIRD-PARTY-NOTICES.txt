@@ -20,6 +20,8 @@ dotenv 17.4.2 - BSD-2-Clause
 colors 1.4.0 - MIT
 command-buffer 0.1.0 - MIT
 function-rate-limit 1.1.0 - MIT
+opencc-js 1.4.2 - MIT AND Apache-2.0 (Simplified to Traditional Chinese conversion; dictionary data from
+  opencc-data under the Apache License 2.0, see THIRD_PARTY_LICENSES.md in the package)
 
 Downloaded only if you choose to (not included in the installer):
   Longbridge OpenAPI SDK native module - fetched from npm on first use of the Longbridge order book.

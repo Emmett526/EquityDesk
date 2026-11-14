@@ -1,6 +1,6 @@
 EQUITY DESK BETA 1.0 - READ ME
 ==============================
-Version 1.0.0-beta.2 (Beta 1.0.1). This is a beta: expect rough edges, and please report problems.
+Version 1.0.0-beta.3 (Beta 1.0.2). This is a beta: expect rough edges, and please report problems.
 
 
 1. RESEARCH ONLY, NOT TRADING
@@ -12,12 +12,15 @@ financial advice. You make your own decisions and carry your own risk.
 
 2. INSTALL AND START
 --------------------
-Run EquityDesk-Setup-1.0.0-beta.2.exe (no admin needed). If SmartScreen warns: More info > Run anyway.
+Run EquityDesk-Setup-1.0.0-beta.3.exe (no admin needed). If SmartScreen warns: More info > Run anyway.
 Or unzip the portable version and run EquityDesk.exe.
 First launch asks for the display language (English, or Traditional Chinese for Hong Kong), a display name, primary market, location, time zone, primary currency and a free
 AI model (Gemma 4 or gpt-oss through Ollama). Change them later in SET > Profile and SET > AI assistant;
 the language is in SET > Appearance > Language / 語言. With Chinese selected, the AI assistant also replies
-in Chinese. Tickers, commands (DESK, MON, NVDA F8...) and file formats stay the same in every language.
+in Chinese, and NEWS, DESK headlines, company names and FIN company profiles come from Chinese sources first
+(Yahoo 財經, RTHK 香港電台, Ming Pao 明報, Google News HK,
+WSJ 華爾街日報, NYT 紐約時報中文網, BBC 中文, FT中文網), with English sources after them when there is
+little Chinese coverage. Tickers, commands (DESK, MON, NVDA F8...) and file formats stay the same in every language.
 
 Tabs (Ctrl+number): 1 DESK  2 MON  3 GP (charts)  4 FIN  5 NEWS  6 CUSTOM  7 (coming soon)  8 SET  9 HELP.
 Type commands like Bloomberg: NVDA then F8, 700 HK, SPX <F10>, NVDA BOOK, NVDA FA, ASK <question>.
