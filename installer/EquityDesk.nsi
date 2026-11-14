@@ -1,5 +1,5 @@
 ; Equity Desk Windows installer (NSIS 3). Per-user install, no admin rights needed.
-; Build: makensis -DVERSION=1.0.0-beta.2 -DFILEVER=1.0.0.2 -DLABEL="Beta 1.0.1" -DSRC=<path to EquityDesk-win32-x64 folder> -DOUT=<output exe> EquityDesk.nsi
+; Build: makensis -DVERSION=1.0.0-beta.3 -DFILEVER=1.0.0.3 -DLABEL="Beta 1.0.2" -DSRC=<path to EquityDesk-win32-x64 folder> -DOUT=<output exe> EquityDesk.nsi
 Unicode true
 SetCompressor /SOLID lzma
 !include "MUI2.nsh"
@@ -11,7 +11,7 @@ SetCompressor /SOLID lzma
   !define FILEVER "0.0.0.0"   ; numeric form Windows needs for file properties
 !endif
 !ifndef LABEL
-  !define LABEL "${VERSION}"   ; name shown to people, e.g. Beta 1.0.1
+  !define LABEL "${VERSION}"   ; name shown to people, e.g. Beta 1.0.2
 !endif
 Name "Equity Desk ${LABEL}"
 OutFile "${OUT}"
