@@ -87,6 +87,7 @@
     try { localStorage.setItem('lang', lang); } catch (e) {}
     try { window.api && window.api.set('lang', { lang }); } catch (e) {}
     document.querySelectorAll('select.langSel').forEach(s => { s.value = lang; });
+    setTimeout(() => window.dispatchEvent(new CustomEvent('eqlang', { detail: lang })), 50);   // after lang.json is written: news, names and FIN reload in the new language
   }
   function fillSelects() {
     document.querySelectorAll('select.langSel').forEach(s => {

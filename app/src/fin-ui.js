@@ -176,7 +176,7 @@ const FinScreen = (() => {
     $f('#finPer').innerHTML = ['annual', 'quarterly'].map(k => `<button data-per="${k}" class="${P.per === k ? 'on' : ''}">${k === 'annual' ? 'Annual' : 'Quarterly'}</button>`).join('');
     $f('#finPer').style.visibility = ['div', 'seg'].includes(P.tab) ? 'hidden' : '';
     if (!D) { $f('#finBody').innerHTML = `<div class="mut finEmpty">${busy ? 'Loading financials…' : 'Type a ticker (e.g. NVDA, 700 HK) and press Enter, or use NVDA FA in the command line.'}</div>`; return; }
-    $f('#finName').innerHTML = `<b>${esc(D.name)}</b> <span class="mut">${esc(D.symbol)}${D.exch ? ' · ' + esc(D.exch) : ''}</span> ${D.price != null ? `<b>${num(D.price)}</b> <span class="mut small">${esc(D.currency)}</span>` : ''}`;
+    $f('#finName').innerHTML = `<b>${esc(D.name)}</b>${D.nameEn ? ` <span class="mut small" data-noi18n>${esc(D.nameEn)}</span>` : ''} <span class="mut">${esc(D.symbol)}${D.exch ? ' · ' + esc(D.exch) : ''}</span> ${D.price != null ? `<b>${num(D.price)}</b> <span class="mut small">${esc(D.currency)}</span>` : ''}`;
     try { $f('#finBody').innerHTML = PAGES[P.tab]() + `<div class="mut small finSrc">Source: ${esc(D.src)} · ${esc(fmtLocal ? fmtLocal(D.time) : '')}${D.errors && D.errors.length ? ' · missing: ' + esc(D.errors.join('; ')) : ''}. Figures as reported, in ${esc(D.finCcy)}. Research only.</div>`; }
     catch (e) { $f('#finBody').innerHTML = `<div class="dn finEmpty">Could not draw this page: ${esc(String(e.message || e))}</div>`; }
   }

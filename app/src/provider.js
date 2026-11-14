@@ -168,6 +168,26 @@ async function book(symbol, settings, opts = {}) {
   if (depthErr) l1.depthError = depthErr;
   return l1;
 }
+// ---------- Chinese names (display language 繁體中文) ----------
+// Yahoo's search endpoint answers in the requested language: 0700.HK -> 騰訊控股, plus sector/industry in Chinese.
+// No crumb or key needed. Saved for a day; null when Yahoo has no Chinese name (the English one is used instead).
+const CJK = /[\u3400-\u9fff]/;
+const zhCache = new Map();   // symbol -> {t, v}
+async function zhInfo(sym) {
+  sym = clean(sym); if (!sym) return null;
+  const c = zhCache.get(sym); if (c && Date.now() - c.t < 86400e3) return c.v;
+  if (process.env.EQUITY_MOCK) return null;
+  let v = null;
+  try {
+    const j = await getJson(`https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(sym)}&lang=zh-Hant-HK&region=HK&quotesCount=5&newsCount=0&listsCount=0`, 8000);
+    const q = ((j && j.quotes) || []).find(x => String(x.symbol || '').toUpperCase() === sym);
+    if (q) { const nm = [q.longname, q.shortname].find(x => x && CJK.test(x)) || null;
+      v = { name: nm, sector: CJK.test(q.sectorDisp || '') ? q.sectorDisp : null, industry: CJK.test(q.industryDisp || '') ? q.industryDisp : null }; }
+  } catch (e) { if (c) return c.v; }
+  zhCache.set(sym, { t: Date.now(), v }); return v;
+}
+async function zhName(sym) { const v = await zhInfo(sym); return v && v.name || null; }
+
 // ---------- watchlist stats: fundamentals, beta / alpha vs SPY, ATM option greeks, FX ----------
 const statCache = new Map();   // symbol -> {t, v}
 async function yJson(url, retry = true) {
@@ -214,15 +234,18 @@ async function oneStat(s, spy) {
   if (out.beta == null) out.beta = out.betaY ?? null;
   return out;
 }
-async function stats(symbols) {
+async function stats(symbols, opts = {}) {
+  const zh = !!opts.zh;
   const syms = [...new Set(symbols.map(clean).filter(Boolean))].slice(0, 60);
   if (process.env.EQUITY_MOCK) return syms.map(s => { const x = mockSeed(s), b = mockBars(s, 160, 86400), p = b[b.length - 1].close, r = k => ((x >> k) % 1000) / 1000, hv = 0.2 + r(3) * 0.4, g = callGreeks(p, Math.round(p), 30 / 365, hv);
     return { symbol: s, name: s + ' Inc (mock)', currency: 'USD', price: p, pe: 10 + r(1) * 40, fpe: 9 + r(2) * 30, eps: p / (10 + r(1) * 40), mcap: 1e9 * (5 + r(4) * 2000), div: r(5) * 3, hi52: Math.max(...b.map(q => q.high)), lo52: Math.min(...b.map(q => q.low)),
       pb: 1 + r(6) * 10, beta: 0.6 + r(7) * 1.2, alpha: (r(8) - 0.5) * 30, hv: hv, iv: hv * 110, delta: g.delta, theta: g.theta, optStrike: Math.round(p), optExp: Date.now() / 1000 + 30 * 86400, optSrc: 'mock', ytd: (r(9) - 0.4) * 40, peg: 1 + r(10) * 2, short: r(11) * 8, src: ['Mock'] }; });
   let spy = null; try { spy = await yahooBars('SPY', '1Y'); } catch (e) {}
-  return Promise.all(syms.map(async s => { const c = statCache.get(s); if (c && Date.now() - c.t < 30 * 60e3) return c.v;
-    try { const v = await oneStat(s, spy); statCache.set(s, { t: Date.now(), v }); return v; } catch (e) { return { symbol: s, error: String(e.message || e) }; } }));
+  return Promise.all(syms.map(async s => { let c = statCache.get(s); if (c && Date.now() - c.t >= 30 * 60e3) c = null;
+    try { let v = c && c.v; if (!v) { v = await oneStat(s, spy); statCache.set(s, { t: Date.now(), v }); } return zh ? await withZh(v) : v; } catch (e) { return { symbol: s, error: String(e.message || e) }; } }));
 }
+// Chinese mode: the Chinese company name when Yahoo has one, the English one kept as nameEn
+async function withZh(v) { const n = await zhName(v.symbol).catch(() => null); return n ? Object.assign({}, v, { name: n, nameEn: v.name }) : v; }
 // FX: how many units of `to` one unit of `from` buys
 async function fx(pairs) {
   const out = {};
@@ -232,4 +255,4 @@ async function fx(pairs) {
   return out;
 }
 
-module.exports = { tick, plan, IVS, quotes, bars, book, clean, RANGES, stats, fx, callGreeks, testFmp, yJson, UA };
+module.exports = { zhInfo, zhName, CJK, tick, plan, IVS, quotes, bars, book, clean, RANGES, stats, fx, callGreeks, testFmp, yJson, UA };

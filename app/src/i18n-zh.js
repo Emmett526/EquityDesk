@@ -9,7 +9,7 @@ window.I18N_ZH = {
   'NVDA <F8> GP · SPX <F10> · NVDA BOOK · AI · HELP': 'NVDA <F8> GP · SPX <F10> · NVDA BOOK · AI · HELP（輸入指令）',
   'RESEARCH ONLY · NO ORDER ENTRY · DATA MAY BE DELAYED': '只供研究 · 不設落盤 · 數據或有延遲',
   'US MKT CLOSED': '美股已收市', 'US MKT OPEN': '美股開市中',
-  'Version': '版本', 'Equity Desk Beta 1.0.1 (1.0.0-beta.2). See CHANGELOG.md in the source for what changed': 'Equity Desk Beta 1.0.1（1.0.0-beta.2）。更改內容見原始碼中的 CHANGELOG.md',
+  'Version': '版本', 'Equity Desk Beta 1.0.2 (1.0.0-beta.3). See CHANGELOG.md in the source for what changed': 'Equity Desk Beta 1.0.2（1.0.0-beta.3）。更改內容見原始碼中的 CHANGELOG.md',
   // DESK
   'Market overview': '市場概覽', '✦ AI market brief': '✦ AI 市場簡報', 'Open picks.json': '開啟 picks.json',
   'AI briefing on what is moving, using the app\'s own data': '用程式本身的數據，由 AI 簡報市場動向',
@@ -81,7 +81,7 @@ window.I18N_ZH = {
   'Display only, no order entry. Free sources give the best bid/ask only; full depth needs IBKR (SET) with exchange depth subscriptions.': '只作顯示，不設落盤。免費來源只提供最佳買賣價；完整深度需要 IBKR（SET）及交易所深度數據訂閱。',
   'Follow the active chart\'s symbol': '跟隨使用中圖表的代號', 'Ladder price step': '價位階梯間距',
   // news
-  'Active chart': '使用中圖表', 'Market (top news)': '市場（頭條新聞）', 'Symbol…': '代號…', 'Sources ▾': '來源 ▾', 'Which news': '新聞類別', 'Sources': '來源',
+  'Active chart': '使用中圖表', 'Market (top news)': '市場（頭條新聞）', 'Symbol…': '代號…', 'Sources ▾': '來源 ▾', 'Which news': '新聞類別', 'Sources': '來源', 'English sources': '英文來源（中文來源不足時補充）',
   'Filter headlines': '篩選標題', 'Refresh now': '立即重新整理', 'Sample headline in mock mode.': '模擬模式下的示範標題。', 'Ask the AI assistant about this headline': '就這則新聞詢問 AI 助理',
   'Live headlines · Bloomberg, Yahoo Finance, CNBC, MarketWatch, WSJ, FT, Nasdaq, Google News, SEC filings': '即時新聞 · Bloomberg、Yahoo Finance、CNBC、MarketWatch、WSJ、FT、Nasdaq、Google News、SEC 文件',
   'Click a headline to open it in your browser. NVDA CN = company news, TOP = market news.': '按標題即可在瀏覽器開啟。NVDA CN = 公司新聞，TOP = 市場新聞。',

@@ -67,9 +67,12 @@ async function timeseries(s, per) {
   const d = [...dates].sort().slice(per === 'annual' ? -6 : -10);
   return { dates: d, ccy, rows: Object.fromEntries(ROWS.map(r => [r[0], d.map(x => vals[r[0]] && vals[r[0]][x] != null ? vals[r[0]][x] : null)])) };
 }
-async function summary(s) {
+async function summary(s, zh) {
   const mods = 'assetProfile,summaryDetail,defaultKeyStatistics,financialData,earnings,earningsHistory,earningsTrend,calendarEvents,recommendationTrend,price';
-  return (await provider.yJson(`https://query2.finance.yahoo.com/v10/finance/quoteSummary/${enc(s)}?modules=${mods}`)).quoteSummary.result[0];
+  const u = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${enc(s)}?modules=${mods}`;
+  // Chinese mode: ask Yahoo for the Hong Kong / Traditional Chinese edition (Chinese business summary where Yahoo has one); plain request if that fails
+  if (zh) { try { return (await provider.yJson(u + '&lang=zh-Hant-HK&region=HK')).quoteSummary.result[0]; } catch (e) {} }
+  return (await provider.yJson(u)).quoteSummary.result[0];
 }
 async function monthly(s) {   // month-end closes (for P/E history) and the dividend history
   const r = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${enc(s)}?range=10y&interval=1mo&events=div`, { headers: { 'User-Agent': provider.UA } });
@@ -112,11 +115,12 @@ function shape(s, sum, an, qt, mo) {
   };
 }
 const EMPTY_TS = { dates: [], rows: {}, ccy: null };
-async function fin(sym, s) {
+async function fin(sym, s, opts = {}) {
   sym = provider.clean(sym); if (!sym) throw new Error('No symbol');
-  if (process.env.EQUITY_MOCK) return mock(sym, s);
-  const c = cache.get(sym); if (c && Date.now() - c.t < 30 * 60e3) return c.v;
-  const [sm, an, qt, mo] = await Promise.allSettled([summary(sym), timeseries(sym, 'annual'), timeseries(sym, 'quarterly'), monthly(sym)]);
+  const zh = !!opts.zh;
+  if (process.env.EQUITY_MOCK) return zhLayer(mock(sym, s), zh ? await provider.zhInfo(sym) : null);
+  const ck = sym + (zh ? '|zh' : ''), c = cache.get(ck); if (c && Date.now() - c.t < 30 * 60e3) return c.v;
+  const [sm, an, qt, mo, zi] = await Promise.allSettled([summary(sym, zh), timeseries(sym, 'annual'), timeseries(sym, 'quarterly'), monthly(sym), zh ? provider.zhInfo(sym) : null]);
   if (sm.status !== 'fulfilled' && an.status !== 'fulfilled') throw new Error('Yahoo has no financials for ' + sym + ': ' + String((sm.reason || {}).message || sm.reason || '').slice(0, 120));
   const v = shape(sym, sm.value || {}, an.value || EMPTY_TS, qt.value || EMPTY_TS, mo.value || { px: [], div: [] });
   v.errors = [sm, an, qt, mo].map((x, i) => x.status === 'rejected' ? ['profile & estimates', 'annual statements', 'quarterly statements', 'price & dividend history'][i] + ': ' + String(x.reason && x.reason.message || x.reason).slice(0, 100) : null).filter(Boolean);
@@ -124,7 +128,15 @@ async function fin(sym, s) {
   if (s && s.fmpKey) v.segments = await segments(sym, s);
   else v.segments.note = 'Revenue by business and by region comes from Financial Modeling Prep. Save an FMP key in SET to see it.';
   v.src = 'Yahoo Finance' + (s && s.fmpKey && (v.segments.product.length || v.segments.geo.length) ? (v.segments.cached ? ' · FMP (segments, saved copy)' : ' · FMP (segments)') : ''); v.time = Date.now();
-  cache.set(sym, { t: Date.now(), v }); return v;
+  zhLayer(v, zi.status === 'fulfilled' ? zi.value : null);
+  cache.set(ck, { t: Date.now(), v }); return v;
+}
+// Chinese mode: Chinese company name, sector and industry when Yahoo has them; English kept in nameEn / sectorEn / industryEn
+function zhLayer(v, z) {
+  if (!z) return v;
+  if (z.name && z.name !== v.name) { v.nameEn = v.name; v.name = z.name; }
+  if (v.profile) { if (z.sector) { v.profile.sectorEn = v.profile.sector; v.profile.sector = z.sector; } if (z.industry) { v.profile.industryEn = v.profile.industry; v.profile.industry = z.industry; } }
+  return v;
 }
 
 // ---- offline demo data (EQUITY_MOCK=1), clearly labelled ----

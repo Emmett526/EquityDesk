@@ -237,6 +237,23 @@ async function loadDeskHome() {
     (q || []).forEach(x => { deskQ[x.symbol] = x; }); if (n && Array.isArray(n.items)) { deskNews = n.items.slice(0, 12); newsCache[''] = n.items; } drawDeskHome(); }
   finally { deskBusy = false; }
 }
+// DESK help box: how to add a free FMP key (FIN > Segments). Shown until a key is saved or the box is hidden. Written in both languages, not run through i18n.
+let fmpHide = false; try { fmpHide = localStorage.getItem('fmpBoxHidden') === '1'; } catch (e) {}
+function fmpBox() {
+  if (fmpHide || (S && S.has && S.has.fmpKey)) return '';
+  const zh = window.I18N && I18N.lang === 'zh-HK';
+  const t = zh ? {
+    h: 'FMP 金鑰（可選）', p: 'FMP（Financial Modeling Prep）金鑰可在 <b>FIN &gt; 業務分部</b> 顯示按業務及地區劃分的收入。報價、圖表、MON 和 DESK 一律使用免費的 Yahoo Finance，無需金鑰。',
+    s: ['前往 financialmodelingprep.com，註冊免費的 Basic 計劃。', '登入後打開 Dashboard，複製你的 API 金鑰。', '在 Equity Desk 打開 <b>SET</b>（Ctrl+8）&gt; <b>數據來源</b>，把金鑰貼到 <b>FMP API 金鑰</b>。', '按 SET 底部的 <b>儲存</b>。金鑰會加密，只儲存在你的電腦上。', '按金鑰旁的 <b>測試</b>，顯示「FMP OK: Apple Inc.」即代表成功（測試用 1 次調用）。', '在 FIN 打開一隻美股，例如輸入 <code>NVDA FA</code>，再選 <b>業務分部</b> 分頁。'],
+    l: '免費計劃每日 250 次調用（香港時間早上 8 時重置）。每間新公司用 2 次，結果保存 7 日；程式在每日 240 次停止以留餘量。免費計劃只涵蓋美股，0700.HK 等非美股不會用到調用。',
+    site: '打開 FMP 網站', set: '打開 SET', hide: '隱藏' } : {
+    h: 'FMP key (optional)', p: 'An FMP (Financial Modeling Prep) key adds revenue by business and by region to <b>FIN &gt; Segments</b>. Quotes, charts, MON and DESK always use Yahoo Finance, which is free and needs no key.',
+    s: ['Go to financialmodelingprep.com and sign up for the free Basic plan.', 'Sign in, open your Dashboard and copy your API key.', 'In Equity Desk open <b>SET</b> (Ctrl+8) &gt; <b>Data providers</b> and paste the key into <b>FMP API key</b>.', 'Press <b>Save</b> at the bottom of SET. The key is encrypted and stored only on your PC.', 'Press <b>Test</b> next to the key. "FMP OK: Apple Inc." means it works (the test uses 1 call).', 'Open a US stock in FIN, for example type <code>NVDA FA</code>, then choose the <b>Segments</b> tab.'],
+    l: 'Free plan: 250 calls a day, reset at midnight UTC (8:00 am Hong Kong time). Each new company costs 2 calls and is saved for 7 days; the app stops at 240 a day to keep a margin. The free plan covers US stocks only, so non-US tickers such as 0700.HK never use a call.',
+    site: 'Open the FMP website', set: 'Open SET', hide: 'Hide' };
+  return `<div class="dcard wide fmpBox" data-noi18n><h3>${t.h}</h3><div class="small">${t.p}</div><ol class="small">${t.s.map(x => `<li>${x}</li>`).join('')}</ol><div class="mut small">${t.l}</div>` +
+    `<div class="fmpBtns"><button class="btn" data-fmp="site">${t.site}</button> <button class="btn" data-fmp="set">${t.set}</button> <button class="x" data-fmp="hide">${t.hide}</button></div></div>`;
+}
 function drawDeskHome() {
   const now = new Date(), row = (s, name) => { const x = deskQ[s] || {}, ex = exchOf(s), st = ex && EXCH[ex] ? exchState(ex, now) : null;
     return `<tr data-s="${esc(s)}"><td>${st ? `<i class="cdot ${st.open ? 'on' : st.lunch ? 'lu' : ''}" title="${esc(st.name)}: ${st.txt.toLowerCase()}"></i>` : '<i class="cdot"></i>'}${esc(name)}</td><td class="mut small">${esc(s)}</td><td>${x.price == null ? '-' : f2(x.price)}</td><td class="${cls(x.pct)}">${x.pct == null ? '-' : sgn(x.pct) + x.pct.toFixed(2) + '%'}</td></tr>`; };
@@ -246,9 +263,12 @@ function drawDeskHome() {
   $('#deskTitle').textContent = greeting();
   $('#deskGrid').innerHTML = groups.map(([g, list]) => `<div class="dcard"><h3>${esc(g)}</h3><table class="dt">${list.map(([s, n]) => row(s, n)).join('')}</table></div>`).join('') +
     mv(ok.slice(0, 5), 'MON: top gainers') + mv(ok.slice(-5).reverse().filter(x => x.pct < 0), 'MON: top losers') +
-    `<div class="dcard wide"><h3>Top headlines <span class="mut small">(click to open in your browser)</span></h3>${deskNews.length ? deskNews.map(n => `<div class="dnews" data-u="${esc(n.url)}"><span class="mut small">${n.time ? fmtLocal(n.time).slice(0, 5) : ''}</span> <b>${esc(n.via || n.src)}</b> ${esc(n.title)}</div>`).join('') : '<div class="mut small">Loading headlines…</div>'}</div>`;
+    fmpBox() + `<div class="dcard wide"><h3>Top headlines <span class="mut small">(click to open in your browser)</span></h3>${deskNews.length ? deskNews.map(n => `<div class="dnews" data-u="${esc(n.url)}"><span class="mut small">${n.time ? fmtLocal(n.time).slice(0, 5) : ''}</span> <b>${esc(n.via || n.src)}</b> ${esc(n.title)}</div>`).join('') : '<div class="mut small">Loading headlines…</div>'}</div>`;
 }
-$('#deskGrid').onclick = e => { const n = e.target.closest('[data-u]'); if (n) return api.openUrl(n.dataset.u); const r = e.target.closest('tr[data-s]'); if (r) { go('gp'); (activeChart() || focusPanel('chart').inst).load(r.dataset.s); } };
+$('#deskGrid').onclick = e => { const f = e.target.closest('[data-fmp]'); if (f) { const a = f.dataset.fmp;
+    if (a === 'site') return api.openUrl('https://site.financialmodelingprep.com/'); if (a === 'set') return go('set');
+    fmpHide = true; try { localStorage.setItem('fmpBoxHidden', '1'); } catch (e) {} return drawDeskHome(); }
+  const n = e.target.closest('[data-u]'); if (n) return api.openUrl(n.dataset.u); const r = e.target.closest('tr[data-s]'); if (r) { go('gp'); (activeChart() || focusPanel('chart').inst).load(r.dataset.s); } };
 $('#deskBrief').onclick = () => { go('gp'); focusPanel('ai').inst.send('Give me a short market brief: what is moving in US, Europe and Asia today and why, what stands out in my MON list, and the 3 headlines that matter most. Use the app tools (quotes for the main indices, app_state, news) and keep it under 220 words.', { show: '✦ AI market brief', ctx: false }); };
 
 // ---- monitor (watchlist) + ticker tape ----
@@ -823,7 +843,7 @@ class WatchPanel {
   destroy() {}
 }
 
-// ---- news panel: live headlines (Bloomberg, Yahoo Finance, CNBC, MarketWatch, WSJ, FT, Nasdaq, Google News, SEC filings) ----
+// ---- news panel: live headlines (Bloomberg, Yahoo Finance, CNBC, MarketWatch, WSJ, FT, Nasdaq, Google News, SEC filings; in Chinese mode Yahoo 財經, RTHK, Ming Pao, Google 新聞, WSJ/NYT/BBC/FT Chinese editions first) ----
 const newsCache = {};   // symbol ('' = market) -> latest items, also used for the AI desk context
 let NEWS_SOURCES = [];
 class NewsPanel {
@@ -853,9 +873,9 @@ class NewsPanel {
   async load(force) {
     const sym = this.sym(), tok = ++this.tok; if (sym !== this.lastSym) { this.items = []; this.seen = new Set(); this.first = true; this.draw(); } this.lastSym = sym;
     this.q('.nInfo').textContent = 'Loading…';
-    this.busy = true; const r = await api.news({ sym, sources: NEWS_SOURCES.length ? NEWS_SOURCES.map(s => s.id).filter(id => !this.p.off.includes(id)) : null }); this.busy = false; if (tok !== this.tok) return;
+    this.busy = true; const r = await api.news({ sym, off: this.p.off }); this.busy = false; if (tok !== this.tok) return;
     if (!r || r.error) { this.q('.nInfo').textContent = (r && r.error) || 'News failed'; return; }
-    if (r.sources && !NEWS_SOURCES.length) { NEWS_SOURCES = r.sources; }
+    if (r.sources) { const ch = NEWS_SOURCES.map(s => s.id).join() !== r.sources.map(s => s.id).join(); NEWS_SOURCES = r.sources; if (ch && this.q('.nSrc').style.display === 'flex') this.drawSrc(); }   // the list depends on the display language
     const fresh = this.first ? new Set() : new Set(r.items.filter(i => !this.items.some(o => o.url === i.url)).map(i => i.url));
     this.first = false; this.items = r.items; this.fresh = fresh; newsCache[sym] = r.items;
     this.q('.nInfo').textContent = `● LIVE · ${r.items.length} headlines · updated ${fmtLocal(Date.now())}` + (fresh.size ? ` · ${fresh.size} new` : '') + (r.errors.length ? ` · ${r.errors.length} source(s) failed` : '');
@@ -865,7 +885,8 @@ class NewsPanel {
     const q = this.q('.nQ').value.trim().toLowerCase(), day = new Date().toDateString();
     const when = t => { if (!t) return ''; const d = new Date(t); return d.toDateString() === day ? d.toTimeString().slice(0, 5) : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); };
     const rows = this.items.map((it, i) => ({ it, i })).filter(({ it }) => !q || (it.title + ' ' + it.src + ' ' + it.via).toLowerCase().includes(q));
-    this.q('.nList').innerHTML = rows.length ? rows.map(({ it, i }) => `<div class="nRow${this.fresh && this.fresh.has(it.url) && !this.seen.has(it.url) ? ' new' : ''}" data-u="1" data-i="${i}" title="${esc(it.summary || it.title)}">` +
+    const zhFirst = rows.some(x => x.it.lang === 'zh'), cut = zhFirst ? rows.findIndex(x => x.it.lang !== 'zh') : -1;   // Chinese mode: Chinese headlines first, then a divider and the English ones
+    this.q('.nList').innerHTML = rows.length ? rows.map(({ it, i }, k) => (k === cut ? '<div class="nDiv mut small">English sources</div>' : '') + `<div class="nRow${this.fresh && this.fresh.has(it.url) && !this.seen.has(it.url) ? ' new' : ''}" data-u="1" data-i="${i}" title="${esc(it.summary || it.title)}">` +
       `<span class="nT">${esc(when(it.time))}</span><span class="nS s-${esc(it.srcId)}">${esc(it.src)}</span><span class="nH">${esc(it.title)}${it.via ? ` <i>· ${esc(it.via)}</i>` : ''}</span><button class="x" data-ai="1" title="Ask the AI assistant about this headline">AI</button></div>`).join('')
       : `<div class="mut small pad">${this.items.length ? 'No headline matches the filter.' : 'No headlines yet.'}</div>`;
   }
@@ -873,6 +894,13 @@ class NewsPanel {
   follow(sym) { if (this.p.mode === 'follow' && sym !== this.lastSym) this.load(true); }
   destroy() { clearInterval(this.timer); }
 }
+
+// display language changed: headlines, company names and FIN come from language-specific sources
+window.addEventListener('eqlang', () => {
+  allPanels('news').forEach(n => n.load(true)); if (typeof newsScr !== 'undefined' && newsScr) newsScr.load(true); drawDeskHome(); loadDeskHome();
+  const syms = Object.keys(wlStats); syms.forEach(k => delete wlStats[k]); if (syms.length) ensureStats(syms, true);
+  if (typeof FinScreen !== 'undefined' && FinScreen.data) FinScreen.load(FinScreen.state.sym);
+});
 
 // ---- AI assistant panel ----
 const aiLevels = {};   // sym -> {entry,target,stop} from an AI idea, drawn as dotted price lines (display only)
