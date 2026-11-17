@@ -1,5 +1,5 @@
 ; Equity Desk Windows installer (NSIS 3). Per-user install, no admin rights needed.
-; Build: makensis -DVERSION=1.0.0-beta.3 -DFILEVER=1.0.0.3 -DLABEL="Beta 1.0.2" -DSRC=<path to EquityDesk-win32-x64 folder> -DOUT=<output exe> EquityDesk.nsi
+; Build: makensis -DVERSION=1.1.0-beta.1 -DFILEVER=1.1.0.1 -DLABEL="Beta 1.1.0" -DSRC=<path to EquityDesk-win32-x64 folder> -DOUT=<output exe> EquityDesk.nsi
 Unicode true
 SetCompressor /SOLID lzma
 !include "MUI2.nsh"

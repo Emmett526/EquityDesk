@@ -1,6 +1,6 @@
 EQUITY DESK BETA 1.0 - READ ME
 ==============================
-Version 1.0.0-beta.3 (Beta 1.0.2). This is a beta: expect rough edges, and please report problems.
+Version 1.1.0-beta.1 (Beta 1.1.0). This is a beta: expect rough edges, and please report problems.
 
 
 1. RESEARCH ONLY, NOT TRADING
@@ -12,7 +12,7 @@ financial advice. You make your own decisions and carry your own risk.
 
 2. INSTALL AND START
 --------------------
-Run EquityDesk-Setup-1.0.0-beta.3.exe (no admin needed). If SmartScreen warns: More info > Run anyway.
+Run EquityDesk-Setup-1.1.0-beta.1.exe (no admin needed). If SmartScreen warns: More info > Run anyway.
 Or unzip the portable version and run EquityDesk.exe.
 First launch asks for the display language (English, or Traditional Chinese for Hong Kong), a display name, primary market, location, time zone, primary currency and a free
 AI model (Gemma 4 or gpt-oss through Ollama). Change them later in SET > Profile and SET > AI assistant;
@@ -22,7 +22,7 @@ in Chinese, and NEWS, DESK headlines, company names and FIN company profiles com
 WSJ 華爾街日報, NYT 紐約時報中文網, BBC 中文, FT中文網), with English sources after them when there is
 little Chinese coverage. Tickers, commands (DESK, MON, NVDA F8...) and file formats stay the same in every language.
 
-Tabs (Ctrl+number): 1 DESK  2 MON  3 GP (charts)  4 FIN  5 NEWS  6 CUSTOM  7 (coming soon)  8 SET  9 HELP.
+Tabs (Ctrl+number): 1 DESK  2 MON  3 GP (charts)  4 FIN  5 NEWS  6 VAL  7 CUSTOM  8 SET  9 HELP.
 Type commands like Bloomberg: NVDA then F8, 700 HK, SPX <F10>, NVDA BOOK, NVDA FA, ASK <question>.
 F1 or HELP lists every command and key.
 
@@ -81,7 +81,19 @@ The "Open picks.json" button on DESK is left over from an early version. It read
 format that nothing produces any more, so it is not documented and can be ignored. It will be removed
 in a later version.
 
-6. CUSTOM INDICATORS (tab 6 > Indicators)
+6. VALUATION (tab 6 VAL)
+------------------------
+Type a ticker with VAL (for example NVDA VAL or 700 HK VAL), or DCF to open straight on the DCF page.
+  Summary        estimated intrinsic value, upside/downside and the bear / base / bull range
+  DCF            10-year free cash flow model. Change growth, FCF margin, discount rate and terminal
+                 growth in the boxes (Reset puts them back); sensitivity grid below
+  Relative       P/E, P/S, P/FCF and EV/EBITDA now against the stock's own history
+  Discount rate  WACC step by step (risk-free rate 4.25%, equity risk premium 5%, beta from Yahoo)
+  Forecasts      analyst price targets and revenue / EPS estimates where Yahoo has them
+  Fundamentals   profitability, solvency and an economic moat check (Wide / Narrow / None found)
+Data comes from Yahoo Finance. These are simple models for research, not advice.
+
+7. CUSTOM INDICATORS (tab 7 > Indicators)
 -----------------------------------------
 Import a .py or .c file. Header lines set its name and inputs:
     @name      display name
@@ -115,7 +127,7 @@ C (compiled once with gcc, clang or tcc; set paths in SET if needed):
 
 Imported code runs as a normal program on your PC. Only import files you trust.
 
-7. CUSTOM UI (tab 6 > UI)
+8. CUSTOM UI (tab 7 > UI)
 -------------------------
 Change the look only: colours, font, text size, corner radius, gradients, small shadows, and the order of
 the nine tabs. Tabs can't be renamed, removed or added, and app functions can't be changed. Anything that
@@ -125,7 +137,7 @@ invisible text) is ignored, and the app lists what it ignored. Reset to default,
 Use the colour pickers, or import a theme file:
 
 HTML + CSS (only the <style> part is used; @name and @tabs go in a comment):
-    <!-- @name Ocean   @tabs DESK MON GP NEWS FIN CUSTOM NEW SET HELP -->
+    <!-- @name Ocean   @tabs DESK MON GP NEWS FIN VAL CUSTOM SET HELP -->
     <style>
     :root { --amb: #00c2ff; --yel: #7fffd4; --bg: #020b14; }
     #fkeys button.on { background: linear-gradient(90deg, #00c2ff, #0077ff); }
@@ -134,7 +146,7 @@ HTML + CSS (only the <style> part is used; @name and @tabs go in a comment):
 
 Python or C: the program prints one line of JSON:
     {"name": "Ocean", "colors": {"amb": "#00c2ff", "bg": "#020b14"}, "font": "Cascadia Mono, Consolas",
-     "fontSize": 13, "radius": 6, "tabs": ["DESK","MON","GP","NEWS","FIN","CUSTOM","NEW","SET","HELP"],
+     "fontSize": 13, "radius": 6, "tabs": ["DESK","MON","GP","NEWS","FIN","VAL","CUSTOM","SET","HELP"],
      "css": "#fkeys button.on { background: #00c2ff; }"}
 
   colors     bg, panel, panel2, panel3, line, line0, line2, line3, ink (text), ink2, hi, mut (muted),
@@ -144,7 +156,7 @@ Python or C: the program prints one line of JSON:
              border colours, border-radius, box-shadow, text-shadow, font-family, font-weight,
              font-style, letter-spacing, text-transform, text-decoration, caret/accent/outline colours
 
-8. NOT AFFILIATED
+9. NOT AFFILIATED
 -----------------
 Equity Desk is an independent personal project. It is not affiliated with, endorsed by, sponsored by or
 connected to any of the companies or projects it mentions or connects to, including the New York Stock
@@ -159,7 +171,7 @@ terms (for example Yahoo's, the Gemma terms of use, or a data vendor's licence) 
 responsibility. Names are used for a personal, non-commercial project in the author's view as fair use;
 this note is not legal advice.
 
-9. LICENCE
+10. LICENCE
 ----------
 Free for personal, non-commercial use only. No commercial use. See LICENSE-EquityDesk.txt. The included
 open-source components keep their own licences (LICENSE, LICENSES.chromium.html, THIRD-PARTY-NOTICES.txt).

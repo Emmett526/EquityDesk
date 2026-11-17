@@ -8,7 +8,7 @@ Copyright (c) 2026 Emmett526. All rights reserved except as granted below.
    or service, use it to provide paid advice, signals or data, or use it inside a business, without the
    author's written permission.
 
-3. No redistribution of changed copies. You may change the app's look through tab 6 (Custom UI) and add
+3. No redistribution of changed copies. You may change the app's look through tab 7 (Custom UI) and add
    your own custom indicators. You may not publish a modified version of the app itself.
 
 4. Research only. Equity Desk does not place orders and is not financial advice. You are responsible for

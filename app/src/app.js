@@ -25,12 +25,12 @@ const VIEWS = ['desk', 'watch', 'gp', 'news', 'fin', 'ind', 'set', 'help'];
 function go(v, noHist) {
   if (v !== view && !noHist) viewHist.push(view); view = v; if (typeof api !== 'undefined') api.set('lastview', v);
   $$('#fkeys button[data-v]').forEach(b => b.classList.toggle('on', b.dataset.v === v)); $$('.view').forEach(x => x.classList.toggle('on', x.id === 'v-' + v));
-  if (v === 'desk' && $('#deskFrame').style.display !== 'block') loadDeskHome(); if (v === 'watch') drawWatch(lastQuotes); if (v === 'gp') ensureWorkspace(); if (v === 'ind') loadInd(); if (v === 'set') showSettings(); if (v === 'help') drawKeys(); if (v === 'news') newsScreen().load(); if (v === 'fin' && typeof FinScreen !== 'undefined') FinScreen.show();
+  if (v === 'desk' && $('#deskFrame').style.display !== 'block') loadDeskHome(); if (v === 'watch') drawWatch(lastQuotes); if (v === 'gp') ensureWorkspace(); if (v === 'ind') loadInd(); if (v === 'set') showSettings(); if (v === 'help') drawKeys(); if (v === 'news') newsScreen().load(); if (v === 'fin' && typeof FinScreen !== 'undefined') FinScreen.show(); if (v === 'lab' && typeof ValScreen !== 'undefined') ValScreen.show();
 }
 $$('#fkeys button[data-v]').forEach(b => b.onclick = () => go(b.dataset.v));
 
 // ---- command line (Bloomberg-style) ----
-const CMD_VIEWS = { NEWS: 'news', N: 'news', TOP: 'news', CN: 'news', DESK: 'desk', MON: 'watch', MONITOR: 'watch', WATCH: 'watch', IND: 'ind', INDICATORS: 'ind', CUSTOM: 'ind', CUST: 'ind', CUSTOMIZE: 'ind', CUSTOMIZATION: 'ind', SET: 'set', SETTINGS: 'set', FIN: 'fin', FA: 'fin', FINANCIALS: 'fin', HELP: 'help', LAB: 'lab', LAUNCHPAD: 'gp', BLP: 'gp' };
+const CMD_VIEWS = { NEWS: 'news', N: 'news', TOP: 'news', CN: 'news', DESK: 'desk', MON: 'watch', MONITOR: 'watch', WATCH: 'watch', IND: 'ind', INDICATORS: 'ind', CUSTOM: 'ind', CUST: 'ind', CUSTOMIZE: 'ind', CUSTOMIZATION: 'ind', SET: 'set', SETTINGS: 'set', FIN: 'fin', FA: 'fin', FINANCIALS: 'fin', HELP: 'help', LAB: 'lab', VAL: 'lab', VALUATION: 'lab', DCF: 'lab', LAUNCHPAD: 'gp', BLP: 'gp' };
 const SECTORS = ['EQUITY', 'INDEX', 'CRNCY', 'CURNCY', 'CMDTY', 'COMDTY', 'GOVT', 'CORP', 'MTGE', 'M-MKT', 'MUNI', 'PFD', 'US', 'UN', 'UW', 'UQ'];
 const MAP = {
   INDEX: { SPX: '^GSPC', INDU: '^DJI', CCMP: '^IXIC', NDX: '^NDX', RTY: '^RUT', VIX: '^VIX', SX5E: '^STOXX50E', UKX: '^FTSE', NKY: '^N225', HSI: '^HSI', DAX: '^GDAXI',
@@ -67,6 +67,7 @@ async function runCmd(raw) {
   if (w.length === 1 && ['N', 'NEWS', 'TOP'].includes(w[0])) { const n = newsScreen(); n.p.mode = 'top'; n.q('.nMode').value = 'top'; n.q('.nSym').style.display = 'none'; return go('news'); }
   if (w.length >= 2 && ['CN', 'N', 'NEWS'].includes(w[w.length - 1])) { const n = newsScreen(); n.p.mode = 'sym'; n.p.sym = resolve(w[0], sector); n.q('.nMode').value = 'sym'; n.q('.nSym').value = n.p.sym; n.q('.nSym').style.display = ''; return go('news'); }
   if (w.length >= 2 && ['FA', 'FIN', 'DES', 'ERN', 'DVD', 'EE', 'FINANCIALS'].includes(w[w.length - 1])) { const sym = resolve(w[0], sector), t = { ERN: 'earn', DVD: 'div', EE: 'est', DES: 'ov' }[w[w.length - 1]]; if (t) FinScreen.state.tab = t; go('fin', false); return FinScreen.load(sym); }
+  if (w.length >= 2 && ['VAL', 'DCF', 'VALUATION', 'FV'].includes(w[w.length - 1])) { const sym = resolve(w[0], sector); if (w[w.length - 1] === 'DCF') ValScreen.state.tab = 'dcf'; go('lab', false); return ValScreen.load(sym); }
   if (w.length === 1 && (w[0] === 'UI' || w[0] === 'THEME')) { go('ind'); return cuTab('ui'); }
   if (w.length === 1 && w[0] === 'RESETUI') return resetSkin();
   if (w.length === 1 && CMD_VIEWS[w[0]]) return go(CMD_VIEWS[w[0]]);
@@ -362,9 +363,9 @@ function applyTheme() {
 function setTheme(t) { themePref = t; api.set('theme', t); applyTheme(); const sel = $('#sTheme'); if (sel) sel.value = t; }
 sysDark.addEventListener('change', () => { if (themePref === 'system') applyTheme(); });
 
-// ---- Custom UI (tab 6 > UI): cosmetic themes. Main (skin.js) filters every theme; this only applies the filtered result. ----
+// ---- Custom UI (tab 7 > UI): cosmetic themes. Main (skin.js) filters every theme; this only applies the filtered result. ----
 let SKIN = { vars: {} };
-const CORE_TABS = ['desk', 'watch', 'gp', 'fin', 'news', 'ind', 'lab', 'set', 'help'];
+const CORE_TABS = ['desk', 'watch', 'gp', 'fin', 'news', 'lab', 'ind', 'set', 'help'];
 const CU_COLORS = [['bg', 'Background'], ['panel2', 'Panels'], ['panel3', 'Inputs'], ['ink', 'Text'], ['mut', 'Muted text'], ['amb', 'Accent'], ['amb2', 'Accent 2'], ['yel', 'Highlight'],
   ['up', 'Up'], ['dn', 'Down'], ['blu', 'Links'], ['line', 'Borders'], ['hdr', 'Header bars'], ['hdrInk', 'Header text']];
 const styleEl = id => document.getElementById(id) || Object.assign(document.head.appendChild(document.createElement('style')), { id });
@@ -1131,7 +1132,7 @@ const IndDlg = (() => {
       if (x.u) return `<div class="it" data-u="${esc(x.u)}"><span class="nm">${esc(x.name)}</span><span class="mut">${esc(x.cat)}</span><button class="x" data-a="cfg" title="Settings">⚙</button><button class="x" data-a="rm" title="Remove">✕</button></div>`;
       const n = on.filter(s => s.t === x.t).length;
       return `<div class="it" data-t="${esc(x.t)}" title="Click to add (click again for another copy)"><span class="nm">${esc(x.name)}</span>${x.short && x.short !== x.name ? `<span class="mut">${esc(x.short)}</span>` : ''}<span class="sp"></span>${n ? `<span class="cnt">${n} on chart</span>` : ''}<span class="mut">${esc(x.cat)}</span></div>`;
-    }).join('') : `<div class="mut small pad">${cat === 'Custom' ? 'No custom indicators yet. Import a .py or .c file in IND (Ctrl+6).' : cat === 'On this chart' ? 'Nothing on this chart yet.' : 'No match.'}</div>`;
+    }).join('') : `<div class="mut small pad">${cat === 'Custom' ? 'No custom indicators yet. Import a .py or .c file in CUSTOM (Ctrl+7).' : cat === 'On this chart' ? 'Nothing on this chart yet.' : 'No match.'}</div>`;
     $('#idTarget').textContent = chart ? chart.p.sym + ' · ' + on.length + ' on chart' : 'no chart';
   }
   function add(t) { if (!chart) return; const s = chart.addStudy(t); if (s) status('Added ' + studyLabel(s) + ' to ' + chart.p.sym); draw(); }

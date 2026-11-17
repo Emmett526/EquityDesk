@@ -1,5 +1,5 @@
 # Example Custom UI theme (Python): warm "sunset" colours, built in code.
-# Import it in Equity Desk: tab 6 CUSTOM > UI > Import theme.
+# Import it in Equity Desk: tab 7 CUSTOM > UI > Import theme.
 # The program runs once and must print the theme as ONE line of JSON.
 import json
 
@@ -24,7 +24,7 @@ theme = {
     "fontSize": 13,                  # 11 to 16
     "radius": 6,                     # 0 to 10
     # the nine tabs, in the order you want; tabs can be moved but never removed
-    "tabs": ["DESK", "MON", "GP", "FIN", "NEWS", "CUSTOM", "NEW", "SET", "HELP"],
+    "tabs": ["DESK", "MON", "GP", "FIN", "NEWS", "VAL", "CUSTOM", "SET", "HELP"],
     # optional extra CSS (cosmetic properties only)
     "css": "#fkeys button.on { background: linear-gradient(90deg, %s, #ff4d6d); }" % accent,
 }

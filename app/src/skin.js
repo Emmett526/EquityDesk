@@ -4,8 +4,8 @@
 // no markup, no scripts, no layout or visibility changes, no URLs. The result is rebuilt from the parsed parts, never passed through as text.
 const fs = require('fs'), path = require('path');
 
-const TABS = ['desk', 'watch', 'gp', 'fin', 'news', 'ind', 'lab', 'set', 'help'];
-const TAB_NAMES = { DESK: 'desk', MON: 'watch', WATCH: 'watch', GP: 'gp', FIN: 'fin', NEWS: 'news', IND: 'ind', CUSTOM: 'ind', CUSTOMIZATION: 'ind', NEW: 'lab', LAB: 'lab', SET: 'set', HELP: 'help' };
+const TABS = ['desk', 'watch', 'gp', 'fin', 'news', 'lab', 'ind', 'set', 'help'];
+const TAB_NAMES = { DESK: 'desk', MON: 'watch', WATCH: 'watch', GP: 'gp', FIN: 'fin', NEWS: 'news', IND: 'ind', CUSTOM: 'ind', CUSTOMIZATION: 'ind', NEW: 'lab', LAB: 'lab', VAL: 'lab', VALUATION: 'lab', SET: 'set', HELP: 'help' };
 // colour tokens a theme may set (CSS custom properties in app.css)
 const VARS = ['bg', 'panel', 'panel2', 'panel3', 'line', 'line0', 'line2', 'line3', 'ink', 'ink2', 'hi', 'mut', 'amb', 'amb2', 'yel', 'up', 'dn', 'blu', 'hdr', 'hdrInk', 'tint', 'tint2'];
 // properties allowed in custom CSS rules: they change how things look, never what is shown or where

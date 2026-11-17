@@ -1,5 +1,5 @@
 /* Example Custom UI theme (C): black-and-white "mono" look.
- * Import it in Equity Desk: tab 6 CUSTOM > UI > Import theme (needs gcc, clang or tcc).
+ * Import it in Equity Desk: tab 7 CUSTOM > UI > Import theme (needs gcc, clang or tcc).
  * The program runs once and must print the theme as ONE line of JSON.
  */
 #include <stdio.h>

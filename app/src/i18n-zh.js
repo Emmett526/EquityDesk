@@ -4,12 +4,12 @@
 window.I18N_ZH = {
   // top bar, tabs
   'Research desk': '研究台', 'Monitor': '監察', 'Launchpad': '工作區', 'Financials': '財務', 'Live headlines': '即時新聞',
-  'Customization': '自訂', 'Coming soon': '即將推出', 'Settings': '設定', 'Keys & commands': '按鍵及指令',
+  'Customization': '自訂', 'Coming soon': '即將推出', 'Valuation': '估值', 'Settings': '設定', 'Keys & commands': '按鍵及指令',
   'Dark mode, click to switch (Ctrl+Alt+T)': '深色模式，按此切換（Ctrl+Alt+T）', 'Light mode, click to switch (Ctrl+Alt+T)': '淺色模式，按此切換（Ctrl+Alt+T）',
   'NVDA <F8> GP · SPX <F10> · NVDA BOOK · AI · HELP': 'NVDA <F8> GP · SPX <F10> · NVDA BOOK · AI · HELP（輸入指令）',
   'RESEARCH ONLY · NO ORDER ENTRY · DATA MAY BE DELAYED': '只供研究 · 不設落盤 · 數據或有延遲',
   'US MKT CLOSED': '美股已收市', 'US MKT OPEN': '美股開市中',
-  'Version': '版本', 'Equity Desk Beta 1.0.2 (1.0.0-beta.3). See CHANGELOG.md in the source for what changed': 'Equity Desk Beta 1.0.2（1.0.0-beta.3）。更改內容見原始碼中的 CHANGELOG.md',
+  'Version': '版本', 'Equity Desk Beta 1.1.0 (1.1.0-beta.1). See CHANGELOG.md in the source for what changed': 'Equity Desk Beta 1.1.0（1.1.0-beta.1）。更改內容見原始碼中的 CHANGELOG.md',
   // DESK
   'Market overview': '市場概覽', '✦ AI market brief': '✦ AI 市場簡報', 'Open picks.json': '開啟 picks.json',
   'AI briefing on what is moving, using the app\'s own data': '用程式本身的數據，由 AI 簡報市場動向',
@@ -94,14 +94,14 @@ window.I18N_ZH = {
   'AI ranks the MON list: which names look worth researching and why': 'AI 為 MON 名單排名：哪些股票值得研究及原因',
   'Ask about the active chart, e.g. \'What does RSI and the order book say about NVDA?\' (Enter sends, Shift+Enter new line)': '就使用中圖表提問，例如「NVDA 的 RSI 及買賣盤反映甚麼？」（Enter 傳送，Shift+Enter 換行）',
   'Open a chart first: the idea is for the active chart.': '請先開啟圖表：意念是針對使用中圖表的。', 'The MON list is empty.': 'MON 名單是空的。',
-  // tab 7
+  // tab 6 (coming soon)
   'This tab is kept free for the next feature.': '這個分頁預留給下一個功能。',
   // CUSTOM
   'Indicators': '指標', 'UI': '介面', 'Import .py or .c': '匯入 .py 或 .c', 'Import theme (.py, .c, .css, .html)': '匯入主題（.py、.c、.css、.html）', 'Reload file': '重新載入檔案',
   'Reset to default': '還原預設', 'Default': '預設', 'default': '預設', 'Name': '名稱', 'Lang': '語言', 'Pane': '窗格', 'Parameters': '參數', 'Outputs': '輸出',
   'Python uses your installed Python 3 (py / python). C is compiled once with gcc, clang or tcc and cached. Set paths in SET if they are not on PATH. Imported code runs as a normal program on your PC, so only import files you trust. Examples are in': 'Python 使用你已安裝的 Python 3（py / python）。C 會用 gcc、clang 或 tcc 編譯一次並快取。如不在 PATH 上，請在 SET 設定路徑。匯入的程式碼會在你的電腦上以一般程式執行，所以只匯入你信任的檔案。範例位於',
   'No custom indicators yet. Import a .py or .c file (examples in samples/indicators).': '暫時未有自訂指標。匯入 .py 或 .c 檔案（範例在 samples/indicators）。',
-  'No custom indicators yet. Import a .py or .c file in IND (Ctrl+6).': '暫時未有自訂指標。在 CUSTOM（Ctrl+6）匯入 .py 或 .c 檔案。',
+  'No custom indicators yet. Import a .py or .c file in CUSTOM (Ctrl+7).': '暫時未有自訂指標。在 CUSTOM（Ctrl+7）匯入 .py 或 .c 檔案。',
   'Added to new charts automatically': '自動加入新圖表', 'Reload': '重新載入', 'Remove': '移除', 'Reloading…': '重新載入中…', 'Removed': '已移除',
   'Colours': '顏色', 'Text and corners': '文字及圓角', 'Font': '字型', 'Text size': '文字大小', 'Default (13)': '預設（13）', 'Corner radius': '圓角半徑', 'Tab order': '分頁次序',
   'The nine tabs always stay; you can only move them. Ctrl+number keeps opening the same tab.': '九個分頁永遠保留，只可調動次序。Ctrl+數字仍會開啟同一個分頁。',
@@ -223,8 +223,8 @@ window.I18N_ZH = {
   'Commodity front month: CL1, GC1, SI1, NG1, HG1': '商品近月合約：CL1、GC1、SI1、NG1、HG1', 'Government yields: USGG3M, USGG5YR, USGG10YR, USGG30YR': '政府債息：USGG3M、USGG5YR、USGG10YR、USGG30YR',
   'MON ↔ watchlist': 'MON ↔ 觀察名單',
   'MON shows one watchlist (pick it at the top of MON, Main by default) and they stay linked: add or remove a ticker in either and both change. Everything lives in one file, watchlists.json in %APPDATA%\\Equity Desk: MON > Edit .json opens it, and changes you save there show up in the app within a couple of seconds ("symbols" lists without ids are fine; "monitor" names the list MON shows). Import .json also reads text files written as name:{ ARM NVDA }': 'MON 顯示一個觀察名單（在 MON 頂部選擇，預設為 Main），兩者保持連動：任何一邊加入或移除代號，兩邊都會改變。所有資料存放在一個檔案：%APPDATA%\\Equity Desk 內的 watchlists.json。MON > 編輯 .json 可開啟它，儲存的修改會在數秒內在程式顯示（沒有 id 的 "symbols" 名單亦可；"monitor" 指定 MON 顯示的名單）。匯入 .json 亦可讀取以 name:{ ARM NVDA } 格式寫成的文字檔',
-  'Tabs': '分頁', 'Ctrl+1 DESK · 2 MON · 3 GP · 4 FIN · 5 NEWS · 6 CUSTOM (custom indicators and custom UI) · 7 new tab (coming soon) · 8 SET · 9 HELP': 'Ctrl+1 DESK · 2 MON · 3 GP · 4 FIN · 5 NEWS · 6 CUSTOM（自訂指標及自訂介面）· 7 新分頁（即將推出）· 8 SET · 9 HELP',
-  'Custom UI (tab 6 > UI): colour pickers, font, text size, corner radius and tab order, or import a theme written in Python, C or HTML+CSS. Cosmetic only: the nine tabs and every function stay, tabs can only be moved, and anything that is not a look change is ignored and listed. RESETUI puts the standard look back': '自訂介面（分頁 6 > 介面）：顏色選擇器、字型、文字大小、圓角半徑及分頁次序，或匯入用 Python、C 或 HTML+CSS 編寫的主題。只改外觀：九個分頁及所有功能保持不變，分頁只可調動次序，任何非外觀的改動都會被忽略並列出。RESETUI 可還原標準外觀',
+  'Tabs': '分頁', 'Ctrl+1 DESK · 2 MON · 3 GP · 4 FIN · 5 NEWS · 6 VAL (valuation: DCF, relative value, discount rate, forecasts, fundamentals) · 7 CUSTOM (custom indicators and custom UI) · 8 SET · 9 HELP': 'Ctrl+1 DESK · 2 MON · 3 GP · 4 FIN · 5 NEWS · 6 VAL（估值：現金流折現、相對估值、折現率、預測、基本面）· 7 CUSTOM（自訂指標及自訂介面）· 8 SET · 9 HELP',
+  'Custom UI (tab 7 > UI): colour pickers, font, text size, corner radius and tab order, or import a theme written in Python, C or HTML+CSS. Cosmetic only: the nine tabs and every function stay, tabs can only be moved, and anything that is not a look change is ignored and listed. RESETUI puts the standard look back': '自訂介面（分頁 7 > 介面）：顏色選擇器、字型、文字大小、圓角半徑及分頁次序，或匯入用 Python、C 或 HTML+CSS 編寫的主題。只改外觀：九個分頁及所有功能保持不變，分頁只可調動次序，任何非外觀的改動都會被忽略並列出。RESETUI 可還原標準外觀',
   'Watchlist .json': '觀察名單 .json', 'Export .json saves a list as { "name": "Main", "symbols": ["ARM", "NVDA"] }; Import .json reads that, Equity Desk exports or plain arrays of symbols. Works in MON and in the watchlist panel': '匯出 .json 會把名單儲存為 { "name": "Main", "symbols": ["ARM", "NVDA"] }；匯入 .json 可讀取這格式、Equity Desk 匯出檔或純代號陣列。MON 及觀察名單面板均適用',
   'Company financials like TradingView (Ctrl+4): Overview, Statements (income, balance sheet, cash flow), Statistics (valuation, profitability, liquidity, solvency, per share), Estimates (analyst rating, price target, EPS and revenue forecasts), Dividends, Earnings (reported vs estimate, surprise) and Segments (by business and country; needs an FMP key, used only here and saved for 7 days). Annual / Quarterly switch. NVDA ERN, NVDA DVD, NVDA EE open those sub-tabs': '類似 TradingView 的公司財務（Ctrl+4）：概覽、財務報表（損益、資產負債、現金流）、統計數據（估值、盈利能力、流動性、償債能力、每股）、預測（分析師評級、目標價、每股盈利及收入預測）、股息、盈利（公佈對預測、驚喜）及業務分部（按業務及國家；需要 FMP 金鑰，只在此使用並保存 7 天）。可切換年度／季度。NVDA ERN、NVDA DVD、NVDA EE 開啟相應子分頁',
   'Levels & sessions': '價位及時段',
@@ -268,7 +268,7 @@ window.I18N_ZH = {
   'EQUITY sector key': 'EQUITY 板塊鍵', 'CMDTY sector key': 'CMDTY 板塊鍵', 'INDEX sector key': 'INDEX 板塊鍵', 'CRNCY sector key': 'CRNCY 板塊鍵', 'CLIENT key (DESK)': 'CLIENT 鍵（DESK）',
   'CANCEL (clear command, stop tool, deselect)': 'CANCEL（清除指令、停止工具、取消選取）', 'MENU (back to previous screen)': 'MENU（返回上一個畫面）', 'PAGE FWD (next panel)': 'PAGE FWD（下一個面板）',
   'PAGE BACK (previous panel)': 'PAGE BACK（上一個面板）', 'Focus the command line': '跳到指令列', 'Screens': '畫面', 'DESK research desk': 'DESK 研究台', 'MON monitor': 'MON 監察', 'GP launchpad': 'GP 工作區',
-  'FIN company financials': 'FIN 公司財務', 'NEWS live headlines': 'NEWS 即時新聞', 'CUSTOM customization (indicators, UI)': 'CUSTOM 自訂（指標、介面）', 'Tab 7 (coming soon)': '分頁 7（即將推出）',
+  'FIN company financials': 'FIN 公司財務', 'NEWS live headlines': 'NEWS 即時新聞', 'CUSTOM customization (indicators, UI)': 'CUSTOM 自訂（指標、介面）', 'VAL valuation (DCF, ratings, fundamentals)': 'VAL 估值（現金流折現、評級、基本面）',
   'SET settings': 'SET 設定', 'HELP keys & commands': 'HELP 按鍵及指令', 'Switch dark / light mode': '切換深色／淺色模式', 'Search HELP (on the HELP screen)': '搜尋 HELP（在 HELP 畫面）',
   'New chart panel': '新增圖表面板', 'New order book panel': '新增買賣盤面板', 'New monitor panel': '新增監察面板', 'New AI assistant panel': '新增 AI 助理面板', 'New watchlist panel': '新增觀察名單面板',
   'Split active area vertically': '垂直分割使用中區域', 'Split active area horizontally': '水平分割使用中區域', 'Join active area with its neighbour': '把使用中區域與相鄰區域合併', 'Close active panel': '關閉使用中面板',
