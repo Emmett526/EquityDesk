@@ -1,17 +1,40 @@
 # Equity Desk
 
-**Version: Beta 1.0.2 (`1.0.0-beta.3`)** · by Emmett526
+**Version: Beta 1.1.0 (`1.1.0-beta.1`)** · by Emmett526
 
 A Bloomberg-style equity research terminal for Windows, built with Electron. It has:
 
 - a market desk and monitor
 - charts with TradingView-style drawings and 120+ indicators
 - company financials and news
+- a valuation tab (VAL): DCF with bear/base/bull cases, relative valuation, discount rate (WACC), analyst forecasts, and fundamentals with an economic moat check
 - an AI assistant (local via Ollama, or your own API keys)
 - your own Python/C indicators and cosmetic themes
 - English and Traditional Chinese (Hong Kong); in Chinese, news and company names come from Chinese sources first
 
 Research only: no order entry or paper trading.
+
+## Install
+
+Download the latest version from the [Releases](../../releases) page.
+
+- **Windows:** run `EquityDesk-Setup-1.1.0-beta.1.exe`, or unzip the portable `EquityDesk-1.1.0-beta.1-win32-x64.zip` and run `EquityDesk.exe`.
+- **macOS:** runs with Wine (not officially supported). Install Ollama for macOS too, so the AI assistant is fast.
+
+Step-by-step instructions for both: **[INSTALL.md](INSTALL.md)**
+
+## Recommended specs
+
+The app itself runs on most Windows PCs with 8 GB RAM. The local AI assistant is the heavy part:
+
+| Computer | Local AI answer time (estimate) |
+| --- | --- |
+| Core i5, 16 GB, no NVIDIA GPU | 2 to 4 minutes |
+| Core i7, 32 GB, no NVIDIA GPU | 1 to 2 minutes |
+| Any PC with an NVIDIA RTX GPU | about 10 seconds |
+| Mac with Ollama for macOS | 10 to 20 seconds |
+
+On slower PCs, a cloud AI provider (set in SET) answers in seconds. Full tiers, model choice and tips: **[RECOMMENDED-SPECS.md](RECOMMENDED-SPECS.md)**
 
 ## FMP key (optional)
 
@@ -41,6 +64,8 @@ An FMP (Financial Modeling Prep) key adds revenue by business and by region to *
 - `installer/` NSIS installer script and node_modules prune script
 - `release/` files shipped next to the app (README.txt, licence, notices, Examples)
 - `samples/` sample custom indicators
+- `INSTALL.md` install guide for Windows and macOS
+- `RECOMMENDED-SPECS.md` hardware tiers and expected AI speed
 
 ## Run from source
 
@@ -56,7 +81,7 @@ API keys are never stored in this repo. The app saves them encrypted on the user
 
 ## Versioning
 
-Releases use [semantic versioning](https://semver.org). Beta releases are `1.0.0-beta.N`, shown in the app as "Beta 1.0", "Beta 1.0.1", "Beta 1.0.2" and so on. The first stable release will be `1.0.0`. See `CHANGELOG.md`.
+Releases use [semantic versioning](https://semver.org). Beta releases are `X.Y.Z-beta.N`, shown in the app as "Beta 1.0", "Beta 1.0.1", "Beta 1.0.2", "Beta 1.1.0" and so on. A big new feature raises the middle number (1.1.0). The first stable release will drop the `-beta` part. See `CHANGELOG.md`.
 
 ## Licence
 
