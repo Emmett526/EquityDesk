@@ -107,11 +107,15 @@ const testFmp = async key => {
 function mockSeed(sym) { let h = 7; for (const c of sym) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; }
 function mockBars(sym, n, step) { let x = mockSeed(sym), p = 50 + (x % 400); const rnd = () => (x = (x * 1664525 + 1013904223) >>> 0) / 4294967296, out = [], now = Math.floor(Date.now() / 1000);
   for (let i = n; i > 0; i--) { const o = p, c = o * (1 + (rnd() - 0.48) * 0.02), h = Math.max(o, c) * (1 + rnd() * 0.006), l = Math.min(o, c) * (1 - rnd() * 0.006); out.push({ time: now - i * step, open: o, high: h, low: l, close: c, volume: Math.floor(1e6 + rnd() * 5e6) }); p = c; } return out; }
+// run fn over items with at most n requests at a time (so long lists load fully without flooding Yahoo)
+async function pool(items, n, fn) { const out = new Array(items.length); let i = 0;
+  await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => { while (i < items.length) { const k = i++; out[k] = await fn(items[k]); } })); return out; }
+const MAX_SYMS = 500;
 async function quotes(symbols, settings) {
   if (process.env.EQUITY_MOCK) return symbols.map(clean).filter(Boolean).map(s => { const b = mockBars(s, 160, 86400), l = b[b.length - 1], pr = b[b.length - 2].close; return { symbol: s, price: l.close, prev: pr, chg: l.close - pr, pct: (l.close / pr - 1) * 100, high: l.high, low: l.low, vol: l.volume, src: 'Mock', time: Date.now() }; });
-  const syms = [...new Set(symbols.map(clean).filter(Boolean))].slice(0, 60);
-  const res = await Promise.all(syms.map(s => yahooQuote(s)
-    .catch(e => ({ symbol: s, error: String(e.message || e) }))));
+  const syms = [...new Set(symbols.map(clean).filter(Boolean))].slice(0, MAX_SYMS);
+  const res = await pool(syms, 12, s => yahooQuote(s)
+    .catch(e => ({ symbol: s, error: String(e.message || e) })));
   return res;
 }
 async function bars(symbol, range, settings, interval) {
@@ -236,13 +240,13 @@ async function oneStat(s, spy) {
 }
 async function stats(symbols, opts = {}) {
   const zh = !!opts.zh;
-  const syms = [...new Set(symbols.map(clean).filter(Boolean))].slice(0, 60);
+  const syms = [...new Set(symbols.map(clean).filter(Boolean))].slice(0, MAX_SYMS);
   if (process.env.EQUITY_MOCK) return syms.map(s => { const x = mockSeed(s), b = mockBars(s, 160, 86400), p = b[b.length - 1].close, r = k => ((x >> k) % 1000) / 1000, hv = 0.2 + r(3) * 0.4, g = callGreeks(p, Math.round(p), 30 / 365, hv);
     return { symbol: s, name: s + ' Inc (mock)', currency: 'USD', price: p, pe: 10 + r(1) * 40, fpe: 9 + r(2) * 30, eps: p / (10 + r(1) * 40), mcap: 1e9 * (5 + r(4) * 2000), div: r(5) * 3, hi52: Math.max(...b.map(q => q.high)), lo52: Math.min(...b.map(q => q.low)),
       pb: 1 + r(6) * 10, beta: 0.6 + r(7) * 1.2, alpha: (r(8) - 0.5) * 30, hv: hv, iv: hv * 110, delta: g.delta, theta: g.theta, optStrike: Math.round(p), optExp: Date.now() / 1000 + 30 * 86400, optSrc: 'mock', ytd: (r(9) - 0.4) * 40, peg: 1 + r(10) * 2, short: r(11) * 8, src: ['Mock'] }; });
   let spy = null; try { spy = await yahooBars('SPY', '1Y'); } catch (e) {}
-  return Promise.all(syms.map(async s => { let c = statCache.get(s); if (c && Date.now() - c.t >= 30 * 60e3) c = null;
-    try { let v = c && c.v; if (!v) { v = await oneStat(s, spy); statCache.set(s, { t: Date.now(), v }); } return zh ? await withZh(v) : v; } catch (e) { return { symbol: s, error: String(e.message || e) }; } }));
+  return pool(syms, 6, async s => { let c = statCache.get(s); if (c && Date.now() - c.t >= 30 * 60e3) c = null;
+    try { let v = c && c.v; if (!v) { v = await oneStat(s, spy); statCache.set(s, { t: Date.now(), v }); } return zh ? await withZh(v) : v; } catch (e) { return { symbol: s, error: String(e.message || e) }; } });
 }
 // Chinese mode: the Chinese company name when Yahoo has one, the English one kept as nameEn
 async function withZh(v) { const n = await zhName(v.symbol).catch(() => null); return n ? Object.assign({}, v, { name: n, nameEn: v.name }) : v; }

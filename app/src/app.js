@@ -297,7 +297,9 @@ function drawWatch(q) {
   const ok = q.filter(x => !x.error && x.price != null);
   $('#tapeIn').innerHTML = ok.length ? ok.map(x => `<span data-s="${esc(x.symbol)}"><b>${esc(x.symbol)}</b>${pxMine(x.symbol, x.price)} <i class="${cls(x.pct)}">${x.pct == null ? '' : sgn(x.pct) + x.pct.toFixed(2) + '%'}</i></span>`).join('') : '<span class="mut">Add tickers in MON to fill the tape</span>';
 }
-async function refreshWatch() { if (!watch.length) return; const q = await api.quotes(watch); lastQuotes = q; q.forEach(x => { if (!x.error) wlQuotes[x.symbol] = x; }); drawWatch(q); await ensureFx(monCfg.ccy, watch); if (myCcy() && myCcy() !== monCfg.ccy) await ensureFx(myCcy(), watch); drawWatch(q); if (view === 'desk') drawDeskHome(); ensureStats(watch); const ok = q.find(x => !x.error); if (ok) say(ok.src, ok.time); }
+let watchBusy = false, watchAgain = false;   // one refresh at a time; a request made meanwhile runs once after
+async function refreshWatch() { if (watchBusy) { watchAgain = true; return; } watchBusy = true; try { await refreshWatch1(); } finally { watchBusy = false; } if (watchAgain) { watchAgain = false; refreshWatch(); } }
+async function refreshWatch1() { if (!watch.length) return; const q = await api.quotes(watch); lastQuotes = q; q.forEach(x => { if (!x.error) wlQuotes[x.symbol] = x; }); drawWatch(q); await ensureFx(monCfg.ccy, watch); if (myCcy() && myCcy() !== monCfg.ccy) await ensureFx(myCcy(), watch); drawWatch(q); if (view === 'desk') drawDeskHome(); ensureStats(watch); const ok = q.find(x => !x.error); if (ok) say(ok.src, ok.time); }
 async function addWatch(s) { s = clean(s); if (s && !watch.includes(s)) setMonSyms([...watch, s]); drawWatch(lastQuotes); refreshWatch(); }
 // MON shows one list from watchlists.json (WL.monitor); MON and the watchlist panels edit the same file
 const monList = () => WL && WL.lists.length ? WL.lists.find(l => l.id === WL.monitor) || WL.lists[0] : null;

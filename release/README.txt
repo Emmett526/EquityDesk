@@ -1,6 +1,6 @@
 EQUITY DESK BETA 1.0 - READ ME
 ==============================
-Version 1.1.0-beta.1 (Beta 1.1.0). This is a beta: expect rough edges, and please report problems.
+Version 1.1.0-beta.2 (Beta 1.1.1). This is a beta: expect rough edges, and please report problems.
 
 
 1. RESEARCH ONLY, NOT TRADING
@@ -12,7 +12,7 @@ financial advice. You make your own decisions and carry your own risk.
 
 2. INSTALL AND START
 --------------------
-Run EquityDesk-Setup-1.1.0-beta.1.exe (no admin needed). If SmartScreen warns: More info > Run anyway.
+Run EquityDesk-Setup-1.1.0-beta.2.exe (no admin needed). If SmartScreen warns: More info > Run anyway.
 Or unzip the portable version and run EquityDesk.exe.
 First launch asks for the display language (English, or Traditional Chinese for Hong Kong), a display name, primary market, location, time zone, primary currency and a free
 AI model (Gemma 4 or gpt-oss through Ollama). Change them later in SET > Profile and SET > AI assistant;
@@ -85,7 +85,7 @@ in a later version.
 ------------------------
 Type a ticker with VAL (for example NVDA VAL or 700 HK VAL), or DCF to open straight on the DCF page.
   Summary        estimated intrinsic value, upside/downside and the bear / base / bull range
-  DCF            10-year free cash flow model. Change growth, FCF margin, discount rate and terminal
+  DCF            10-year model of revenue and FCF margin. Change growth (year 1 and 5), FCF margin, discount rate and terminal
                  growth in the boxes (Reset puts them back); sensitivity grid below
   Relative       P/E, P/S, P/FCF and EV/EBITDA now against the stock's own history
   Discount rate  WACC step by step (risk-free rate 4.25%, equity risk premium 5%, beta from Yahoo)

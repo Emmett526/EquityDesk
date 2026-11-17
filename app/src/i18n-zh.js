@@ -9,7 +9,7 @@ window.I18N_ZH = {
   'NVDA <F8> GP · SPX <F10> · NVDA BOOK · AI · HELP': 'NVDA <F8> GP · SPX <F10> · NVDA BOOK · AI · HELP（輸入指令）',
   'RESEARCH ONLY · NO ORDER ENTRY · DATA MAY BE DELAYED': '只供研究 · 不設落盤 · 數據或有延遲',
   'US MKT CLOSED': '美股已收市', 'US MKT OPEN': '美股開市中',
-  'Version': '版本', 'Equity Desk Beta 1.1.0 (1.1.0-beta.1). See CHANGELOG.md in the source for what changed': 'Equity Desk Beta 1.1.0（1.1.0-beta.1）。更改內容見原始碼中的 CHANGELOG.md',
+  'Version': '版本', 'Equity Desk Beta 1.1.1 (1.1.0-beta.2). See CHANGELOG.md in the source for what changed': 'Equity Desk Beta 1.1.1（1.1.0-beta.2）。更改內容見原始碼中的 CHANGELOG.md',
   // DESK
   'Market overview': '市場概覽', '✦ AI market brief': '✦ AI 市場簡報', 'Open picks.json': '開啟 picks.json',
   'AI briefing on what is moving, using the app\'s own data': '用程式本身的數據，由 AI 簡報市場動向',

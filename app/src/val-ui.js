@@ -36,11 +36,20 @@ const ValScreen = (() => {
     const gNext = fin(tr('+1y').rev) && tr('+1y').revYago ? tr('+1y').rev / tr('+1y').revYago - 1 : null;
     const gNow = fin(tr('0y').rev) && tr('0y').revYago ? tr('0y').rev / tr('0y').revYago - 1 : null;
     let g = [gNext, gNow, fd.revGrowth].find(fin), gSrc = g === gNext ? 'est1y' : g === gNow ? 'est0y' : g != null ? 'hist' : 'none';
-    if (g == null) g = 0.06; g = clamp(g, -0.1, 0.4);
+    if (g == null) g = 0.06; g = clamp(g, -0.3, 0.5);
+    // growth by year 5: analysts' long-term (5-year) growth if Yahoo has it, else the year-1 rate capped at 8%.
+    // A one-year estimate is never carried for five years (it overstates cyclical stocks at a peak).
+    const ltg = (tr('+5y') || {}).growth, gL = fin(ltg) ? clamp(ltg, 0, 0.15) : clamp(g, 0, 0.08), gLSrc = fin(ltg) ? 'ltg' : 'cap';
+    // free cash flow margin: today's, fading over five years to halfway between today's and its usual (median) level,
+    // so record (or very poor) margins are not assumed to last forever
+    const Y = years(), rev = fin(fd.rev) && fd.rev > 0 ? fd.rev : (Y.slice(-1)[0] || {}).rev;
+    const hm = Y.filter(y => fin(y.fcf) && y.rev > 0).map(y => y.fcf / y.rev), mHist = hm.length >= 3 ? med(hm) : null;
+    const m0 = fin(fcf) && rev > 0 ? fcf / rev : null, m = m0 == null ? null : mHist == null ? m0 : Math.max((m0 + mHist) / 2, Math.min(m0, 0.02));
     const ly = years().slice(-1)[0] || {}, beta = clamp(fin(ks.beta) ? ks.beta : 1, 0.4, 2.5), debt = fin(fd.debt) ? fd.debt : ly.debt || 0, cash = fin(fd.cash) ? fd.cash : ly.cash || 0;
     let shares = ks.shares; if (!(shares > 0)) shares = last(an.DilutedAverageShares) || last(an.OrdinarySharesNumber);
     if (fcfSrc === 'ni') notes.push(L('Free cash flow is not positive, so 80% of net income is used as the starting cash flow.', '自由現金流不是正數，所以用淨利潤的 80% 作起點現金流。'));
-    return { fcf, fcfSrc, g, gSrc, gT: 0.025, rf: RF, erp: ERP, beta, kd: KD, tax: TAX, debt, cash, shares, notes };
+    if (m0 != null && mHist != null && Math.abs(m0 - mHist) > 0.05) notes.push(L(`Free cash flow margin is ${pc(m0)} now against a usual ${pc(mHist)}, so the model fades it to ${pc(m)} over five years.`, `目前自由現金流利潤率為 ${pc(m0)}，一般水平為 ${pc(mHist)}，所以模型在五年內把它調整至 ${pc(m)}。`));
+    return { fcf, fcfSrc, rev, m0, m, mHist, g, gSrc, gL, gLSrc, gT: 0.025, rf: RF, erp: ERP, beta, kd: KD, tax: TAX, debt, cash, shares, notes };
   }
   // a scenario's assumptions: base = defaults (or the user's own numbers), bear and bull move growth and the discount rate
   // cost of capital (CAPM for equity, after-tax cost of debt, weights at market value of equity and book value of debt)
@@ -50,17 +59,19 @@ const ValScreen = (() => {
   }
   function assume(sc) {
     const b = Object.assign(defaults(), ov); Object.assign(b, wacc(b)); if (ov.r != null) b.r = ov.r;
-    if (sc === 'bear') return Object.assign({}, b, { g: Math.min(b.g * 0.6, b.g - 0.04), r: b.r + 0.01, gT: Math.max(0.01, b.gT - 0.005) });
-    if (sc === 'bull') return Object.assign({}, b, { g: Math.max(b.g * 1.4, b.g + 0.04), r: Math.max(0.05, b.r - 0.01), gT: b.gT + 0.005 });
+    if (sc === 'bear') return Object.assign({}, b, { g: Math.min(b.g * 0.6, b.g - 0.04), gL: Math.max(-0.02, b.gL - 0.02), m: b.m * 0.8, r: b.r + 0.01, gT: Math.max(0.01, b.gT - 0.005) });
+    if (sc === 'bull') return Object.assign({}, b, { g: Math.max(b.g * 1.4, b.g + 0.04), gL: b.gL + 0.02, m: b.m * 1.15, r: Math.max(0.05, b.r - 0.01), gT: b.gT + 0.005 });
     return b;
   }
   // ten-year DCF -> value per share in the price currency
   function dcf(a) {
-    if (!(a.fcf > 0) || !(a.shares > 0) || !(a.r > a.gT)) return null;
-    const rows = []; let f = a.fcf, pvSum = 0;
+    if (!(a.rev > 0) || !fin(a.m0) || !(a.m > 0) || !(a.shares > 0) || !(a.r > a.gT)) return null;
+    // revenue: year-1 growth fades to the year-5 rate, then to terminal growth by year 10; FCF = revenue x margin
+    const rows = []; let rv = a.rev, pvSum = 0;
     for (let y = 1; y <= 10; y++) {
-      const g = y <= 5 ? a.g : a.g + (a.gT - a.g) * (y - 5) / 5; f *= 1 + g;
-      const df = 1 / Math.pow(1 + a.r, y), pv = f * df; pvSum += pv; rows.push({ y, g, f, df, pv });
+      const g = y <= 5 ? a.g + (a.gL - a.g) * (y - 1) / 4 : a.gL + (a.gT - a.gL) * (y - 5) / 5; rv *= 1 + g;
+      const m = y <= 5 ? a.m0 + (a.m - a.m0) * y / 5 : a.m, f = rv * m;
+      const df = 1 / Math.pow(1 + a.r, y), pv = f * df; pvSum += pv; rows.push({ y, g, rv, m, f, df, pv });
     }
     const tv = rows[9].f * (1 + a.gT) / (a.r - a.gT), pvTv = tv * rows[9].df, ev = pvSum + pvTv, eq = ev + a.cash - a.debt;
     return { rows, pvSum, tv, pvTv, ev, eq, ps: eq / a.shares * fxRate, tvShare: pvTv / ev };
@@ -129,12 +140,19 @@ const ValScreen = (() => {
     const eps = fin(D.ks && D.ks.teps) ? D.ks.teps : lastY.eps != null ? lastY.eps * fx : null;
     const revPs = fin(D.fd && D.fd.rev) && sh > 0 ? D.fd.rev / sh * fx : lastY.rev > 0 && lastY.sh > 0 ? lastY.rev / lastY.sh * fx : null;
     const fcfPs = fin(D.fd && D.fd.fcf) && sh > 0 ? D.fd.fcf / sh * fx : lastY.fcf > 0 && lastY.sh > 0 ? lastY.fcf / lastY.sh * fx : null;
+    // at a profit peak (margins far above their usual level) a usual multiple times peak earnings overstates value,
+    // so earnings and cash flow are scaled back halfway to the usual margin for these methods
+    const nmH = med(Y.filter(y => fin(y.ni) && y.rev > 0).map(y => y.ni / y.rev)), nmNow = D.fd && D.fd.nm;
+    const kE = Y.length >= 3 && nmH > 0 && nmNow > nmH * 1.5 ? (nmH + nmNow) / 2 / nmNow : 1;
+    const fm = Y.filter(y => fin(y.fcf) && y.rev > 0).map(y => y.fcf / y.rev), fmH = med(fm), fmNow = fcfPs > 0 && revPs > 0 ? fcfPs / revPs : null;
+    const kF = fm.length >= 3 && fmH > 0 && fmNow > fmH * 1.5 ? (fmH + fmNow) / 2 / fmNow : 1;
+    out.peak = kE < 1 || kF < 1; out.nmH = nmH; out.nmNow = nmNow;
     const add = (key, name, nowMult, base) => { const m = med(out.rows.map(r => r[key]).filter(v => v > 0 && v < 500)); if (!fin(m) || !(base > 0)) return; out.methods.push({ key, name, now: nowMult, med: m, implied: m * base }); };
-    add('pe', L('Price / earnings', '市盈率'), D.sd && D.sd.pe, eps);
+    add('pe', L('Price / earnings', '市盈率'), D.sd && D.sd.pe, eps * kE);
     add('ps', L('Price / sales', '市銷率'), D.sd && D.sd.ps, revPs);
-    add('pfcf', L('Price / free cash flow', '股價 / 自由現金流'), fcfPs > 0 && fin(price) ? price / fcfPs : null, fcfPs);
+    add('pfcf', L('Price / free cash flow', '股價 / 自由現金流'), fcfPs > 0 && fin(price) ? price / fcfPs : null, fcfPs * kF);
     const fpe = D.ks && D.ks.fpe, feps = D.ks && D.ks.feps, mPe = (out.methods.find(m => m.key === 'pe') || {}).med;
-    if (fin(mPe) && feps > 0) out.methods.push({ key: 'fpe', name: L('Forward earnings × usual P/E', '預測盈利 × 一般市盈率'), now: fpe, med: mPe, implied: mPe * feps });
+    if (fin(mPe) && feps > 0) out.methods.push({ key: 'fpe', name: L('Forward earnings × usual P/E', '預測盈利 × 一般市盈率'), now: fpe, med: mPe, implied: mPe * feps * kE });
     out.value = med(out.methods.map(m => m.implied)); return out;
   }
 
@@ -179,17 +197,19 @@ const ValScreen = (() => {
   }
   function pgDcf({ cur, a, price, ccy }) {
     const inp = `<div class="valInputs">` +
-      field('g', L('Growth, years 1-5 (%)', '第 1-5 年增長（%）'), a.g * 100, 0.5, L('Yearly free cash flow growth for the first five years. Years 6-10 fade to the terminal rate.', '首五年自由現金流的每年增長，第 6-10 年逐步降至永續增長率。')) +
+      field('g', L('Revenue growth, year 1 (%)', '第 1 年收入增長（%）'), a.g * 100, 0.5, L('Next year. Growth then moves in a straight line to the year-5 rate.', '明年的增長，之後按直線調整至第 5 年的增長率。')) +
+      field('gL', L('Revenue growth, year 5 (%)', '第 5 年收入增長（%）'), a.gL * 100, 0.5, L('Long-run growth reached by year 5. Years 6-10 fade to terminal growth.', '第 5 年達到的長期增長，第 6-10 年逐步降至永續增長。')) +
+      field('m', L('FCF margin, year 5 on (%)', '第 5 年起自由現金流利潤率（%）'), a.m * 100, 0.5, L("Free cash flow as a share of revenue once things settle. Today's margin moves to this over five years.", '自由現金流佔收入的比例（長期水平）。目前的利潤率會在五年內調整至此。')) +
       field('gT', L('Terminal growth (%)', '永續增長（%）'), a.gT * 100, 0.25, L('Growth after year 10, forever. Usually close to long-run inflation, 2-3%.', '第 10 年後的永續增長，一般接近長期通脹，即 2-3%。')) +
       field('r', L('Discount rate (%)', '折現率（%）'), a.r * 100, 0.25, L('From the Discount rate tab; type here to override it.', '來自「折現率」分頁；在此輸入可直接覆蓋。')) +
-      field('fcf', L(`Starting free cash flow (${D.finCcy})`, `起點自由現金流（${D.finCcy}）`), a.fcf, 1e6, L('Trailing twelve months from Yahoo Finance.', '來自 Yahoo Finance 的過去十二個月數據。'), true) + resetBtn() + `</div>`;
-    if (!cur) return card(L('Discounted cash flow model', '現金流折現模型'), inp + `<div class="mut">${L('A cash-flow valuation is not meaningful here: no positive free cash flow or net income, missing share count, or a discount rate at or below terminal growth. Try Relative valuation instead, or type your own starting cash flow.', '這裏不適合用現金流估值：沒有正數的自由現金流或淨利潤、缺少股數，或折現率不高於永續增長。可改看「相對估值」，或自行輸入起點現金流。')}</div>`, 'wide');
+      resetBtn() + `</div><div class="mut small">${L('Start: revenue', '起點：收入')} ${big(a.rev)} ${esc(D.finCcy)} · ${L('free cash flow', '自由現金流')} ${big(a.fcf)} (${L('margin', '利潤率')} ${pc(a.m0)}${fin(a.mHist) ? ', ' + L('usual', '一般') + ' ' + pc(a.mHist) : ''})</div>`;
+    if (!cur) return card(L('Discounted cash flow model', '現金流折現模型'), inp + `<div class="mut">${L('A cash-flow valuation is not meaningful here: no positive free cash flow or net income, missing share count, or a discount rate at or below terminal growth. Try Relative valuation instead, or type your own FCF margin.', '這裏不適合用現金流估值：沒有正數的自由現金流或淨利潤、缺少股數，或折現率不高於永續增長。可改看「相對估值」，或自行輸入自由現金流利潤率。')}</div>`, 'wide');
     const fx = fxRate !== 1 ? `<div class="mut small">${L(`Financials are reported in ${D.finCcy}; values are converted to ${ccy} at ${n2(fxRate, 4)}.`, `財務數據以 ${D.finCcy} 申報，按 ${n2(fxRate, 4)} 換算為 ${ccy}。`)}</div>` : '';
-    const gSrc = { est1y: L("analysts' revenue growth estimate for next year", '分析師對明年收入增長的預測'), est0y: L("analysts' revenue growth estimate for this year", '分析師對今年收入增長的預測'), hist: L('last reported revenue growth', '最近公布的收入增長'), none: L('a default 6% (no estimate available)', '預設 6%（沒有預測數據）') }[a.gSrc];
+    const gSrc = { est1y: L("analysts' revenue growth estimate for next year", '分析師對明年收入增長的預測'), est0y: L("analysts' revenue growth estimate for this year", '分析師對今年收入增長的預測'), hist: L('last reported revenue growth', '最近公布的收入增長'), none: L('a default 6% (no estimate available)', '預設 6%（沒有預測數據）') }[a.gSrc] + '; ' + (a.gLSrc === 'ltg' ? L("year-5 growth from analysts' 5-year estimate", '第 5 年增長來自分析師的五年預測') : L('year-5 growth is the year-1 rate capped at 0-8%', '第 5 年增長為第 1 年增長，限制在 0-8%'));
     return card(L('Discounted cash flow model', '現金流折現模型'), inp +
-      `<div class="mut small">${L('Starting growth from', '起點增長來自')} ${gSrc}${ov.g != null ? L(' (changed by you)', '（已由你修改）') : ''}. ${P.sc !== 'base' ? L('Bear and bull move growth, the discount rate and terminal growth from the base numbers.', '悲觀及樂觀情境會按基本數字調整增長、折現率及永續增長。') : ''}</div>` + fx + chart(cur) +
+      `<div class="mut small">${L('Starting growth from', '起點增長來自')} ${gSrc}${ov.g != null ? L(' (changed by you)', '（已由你修改）') : ''}. ${P.sc !== 'base' ? L('Bear and bull move growth, the margin, the discount rate and terminal growth from the base numbers.', '悲觀及樂觀情境會按基本數字調整增長、利潤率、折現率及永續增長。') : ''}</div>` + fx + chart(cur) +
       `<table class="valTbl"><tr><th>${L('Year', '年')}</th>${cur.rows.map(r => `<th>${r.y}</th>`).join('')}</tr>` +
-      `<tr><th>${L('Growth', '增長')}</th>${cur.rows.map(r => `<td>${pc(r.g)}</td>`).join('')}</tr><tr><th>FCF</th>${cur.rows.map(r => `<td>${big(r.f)}</td>`).join('')}</tr>` +
+      `<tr><th>${L('Revenue growth', '收入增長')}</th>${cur.rows.map(r => `<td>${pc(r.g)}</td>`).join('')}</tr><tr><th>${L('Revenue', '收入')}</th>${cur.rows.map(r => `<td>${big(r.rv)}</td>`).join('')}</tr><tr><th>${L('FCF margin', '自由現金流利潤率')}</th>${cur.rows.map(r => `<td>${pc(r.m)}</td>`).join('')}</tr><tr><th>FCF</th>${cur.rows.map(r => `<td>${big(r.f)}</td>`).join('')}</tr>` +
       `<tr><th>${L('Discount factor', '折現系數')}</th>${cur.rows.map(r => `<td>${r.df.toFixed(3)}</td>`).join('')}</tr><tr><th>${L('Present value', '現值')}</th>${cur.rows.map(r => `<td>${big(r.pv)}</td>`).join('')}</tr></table>` +
       facts([[L('PV of 10 years of FCF', '十年自由現金流現值'), big(cur.pvSum)], [L('PV of terminal value', '永續價值現值'), big(cur.pvTv) + ' (' + pc(cur.tvShare, 0) + ')'], [L('Enterprise value', '企業價值'), big(cur.ev)], [L('+ Cash − debt', '+ 現金 − 債務'), big(a.cash - a.debt)], [L('Equity value', '股權價值'), big(cur.eq)], [L('Shares', '股數'), big(a.shares)], [L('Value per share', '每股價值'), n2(cur.ps) + ' ' + ccy], [L('vs price', '對比股價'), sp(cur.ps / price - 1), cur.ps >= price ? 'up' : 'dn']]), 'wide') +
       card(L('Sensitivity: value per share', '敏感度：每股價值'), sens(a, price) + `<div class="mut small">${L('Green: more than 15% above the price. Red: more than 15% below. The outlined cell is the current scenario.', '綠色：高於股價 15% 以上；紅色：低於股價 15% 以上；有框的格是目前情境。')}</div>`, 'wide');
@@ -201,7 +221,7 @@ const ValScreen = (() => {
       `<tr class="valTot"><th>${L('Relative value (median of methods)', '相對估值（各方法中位數）')}</th><td></td><td></td><td>${n2(rel.value)} ${esc(ccy)}</td><td class="${relUp >= 0 ? 'up' : 'dn'}">${sp(relUp)}</td></tr></table>`
       : `<div class="mut">${L('Not enough history to compare multiples (needs yearly earnings, sales or cash flow and prices).', '歷史數據不足以比較倍數（需要每年的盈利、收入或現金流及股價）。')}</div>`;
     const hist = rel.rows.length ? `<table class="valTbl valWide"><tr><th>${L('Fiscal year end', '財政年度結算')}</th><th>${L('Price', '股價')}</th><th>P/E</th><th>P/S</th><th>P/FCF</th></tr>${rel.rows.map(r => `<tr><th>${esc(r.d)}</th><td>${n2(r.p)}</td><td>${n2(r.pe, 1)}</td><td>${n2(r.ps, 1)}</td><td>${n2(r.pfcf, 1)}</td></tr>`).join('')}</table>` : '';
-    return card(L('Relative valuation: against its own history', '相對估值：與自身歷史比較'), body + `<div class="mut small">${L('Each method asks: if the stock traded at its usual multiple of the last few years, what would the price be? Peer comparison is not included because the free data has no peer list.', '每個方法都在問：如果股票按過去幾年的一般倍數交易，股價應是多少？由於免費數據沒有同業名單，所以不包括同業比較。')}</div>`, 'wide') +
+    return card(L('Relative valuation: against its own history', '相對估值：與自身歷史比較'), body + `<div class="mut small">${L('Each method asks: if the stock traded at its usual multiple of the last few years, what would the price be? Peer comparison is not included because the free data has no peer list.', '每個方法都在問：如果股票按過去幾年的一般倍數交易，股價應是多少？由於免費數據沒有同業名單，所以不包括同業比較。')}${rel.peak ? ' ' + L(`Margins are well above their usual level (net margin ${pc(rel.nmNow)} vs a usual ${pc(rel.nmH)}), which often happens at a cycle peak, so earnings and cash flow are scaled back halfway to usual margins before applying the multiples (as the DCF does).`, `利潤率遠高於一般水平（淨利潤率 ${pc(rel.nmNow)}，一般為 ${pc(rel.nmH)}），這常見於周期高峰，所以先把盈利及現金流調低至目前與一般利潤率的中間水平，再套用倍數（與 DCF 做法一致）。`) : ''}</div>`, 'wide') +
       (hist ? card(L('Multiples by year', '每年估值倍數'), hist) : '') + pgMultiplesCard(ctx);
   }
   function pgRate({ a }) {

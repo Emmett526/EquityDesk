@@ -91,7 +91,7 @@ async function fmpSeg(s, key, kind) {
 
 function shape(s, sum, an, qt, mo) {
   const g = (o, k) => o ? nc(o[k]) : null, ap = sum.assetProfile || {}, sd = sum.summaryDetail || {}, ks = sum.defaultKeyStatistics || {}, fd = sum.financialData || {}, pr = sum.price || {}, ce = sum.calendarEvents || {}, ea = sum.earnings || {};
-  const trend = ((sum.earningsTrend || {}).trend || []).filter(t => ['0q', '+1q', '0y', '+1y'].includes(t.period)).map(t => ({ period: t.period, end: t.endDate,
+  const trend = ((sum.earningsTrend || {}).trend || []).filter(t => ['0q', '+1q', '0y', '+1y', '+5y'].includes(t.period)).map(t => ({ period: t.period, end: t.endDate,
     eps: g(t.earningsEstimate, 'avg'), epsLo: g(t.earningsEstimate, 'low'), epsHi: g(t.earningsEstimate, 'high'), epsN: g(t.earningsEstimate, 'numberOfAnalysts'), epsYago: g(t.earningsEstimate, 'yearAgoEps'),
     rev: g(t.revenueEstimate, 'avg'), revLo: g(t.revenueEstimate, 'low'), revHi: g(t.revenueEstimate, 'high'), revN: g(t.revenueEstimate, 'numberOfAnalysts'), revYago: g(t.revenueEstimate, 'yearAgoRevenue'), growth: g(t, 'growth') }));
   const hist = ((sum.earningsHistory || {}).history || []).map(h => ({ date: g(h, 'quarter'), actual: g(h, 'epsActual'), est: g(h, 'epsEstimate'), surprise: g(h, 'surprisePercent') != null ? g(h, 'surprisePercent') * 100 : null })).filter(h => h.date);
