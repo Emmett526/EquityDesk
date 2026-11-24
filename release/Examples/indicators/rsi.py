@@ -1,5 +1,5 @@
 # Example custom indicator (Python): Relative Strength Index in a lower pane.
-# Import it in Equity Desk: tab 7 CUSTOM > Indicators > Import .py or .c
+# Import it in Equity Desk: SET > Custom > Indicators > Import .py or .c
 #
 # @name RSI (example)
 # @pane separate

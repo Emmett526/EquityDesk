@@ -258,3 +258,11 @@ table.finT{width:100%;border-collapse:collapse;font-size:12px}.finT th{color:var
 .vd-sb{background:var(--up)}.vd-b{background:var(--up);opacity:.6}.vd-h{background:var(--amb)}.vd-s{background:var(--dn);opacity:.6}.vd-ss{background:var(--dn)}
 .valChecks div{font-size:12px;padding:2px 0}.valChecks b{color:var(--ink);font-weight:400;margin-left:6px}
 @media (max-width:700px){#valBody{grid-template-columns:1fr}}
+
+/* technicals */
+.techBig{font-size:22px;font-weight:700;margin:2px 0 6px}.techScale{position:relative;display:grid;grid-template-columns:repeat(5,1fr);gap:2px;margin:4px 0 10px}
+.techScale span{font-size:10px;text-align:center;color:#fff;padding:2px 0;opacity:.85}.techScale i{position:absolute;top:-5px;bottom:-5px;width:3px;margin-left:-1px;background:var(--ink);box-shadow:0 0 0 1px var(--bg)}
+.techSub{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:6px}.techCard details{margin:6px 0}.techCard summary{cursor:pointer;color:var(--amb)}.techT td:nth-child(n+2){text-align:right}
+/* quants */
+.quantSoon{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}.quantSoon b{font-size:28px;color:var(--amb)}
+.setTabs{margin:0 10px}

@@ -1,24 +1,24 @@
 'use strict';
-// Market data with fallback. Runs in the main process (no CORS, key never reaches the page).
+// market data (main process)
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) EquityDesk/1.0';
-const RANGES = {            // range -> [yahoo range, yahoo interval, unused]
+const RANGES = {   // range -> [yahoo range, interval, unused]
   '1D': ['1d', '5m', '5min'], '5D': ['5d', '15m', '15min'], '1M': ['1mo', '1h', '1hour'],
   '3M': ['3mo', '1d', 'eod'], '6M': ['6mo', '1d', 'eod'], '1Y': ['1y', '1d', 'eod'],
   '5Y': ['5y', '1wk', 'eod']
 };
 const DAYS = { '1D': 1, '5D': 5, '1M': 31, '3M': 92, '6M': 183, '1Y': 366, '5Y': 1830 };
-// Bar intervals: [yahoo interval, seconds, fmp kind, bars merged per output bar, longest range Yahoo serves]
+// intervals: [yahoo interval, seconds, fmp kind, merge, max range]
 const IVS = { '1m': ['1m', 60, '1min', 1, '5D'], '2m': ['2m', 120, null, 1, '1M'], '5m': ['5m', 300, '5min', 1, '1M'], '15m': ['15m', 900, '15min', 1, '1M'], '30m': ['30m', 1800, '30min', 1, '1M'],
   '1h': ['60m', 3600, '1hour', 1, '1Y'], '2h': ['60m', 7200, '1hour', 2, '1Y'], '4h': ['60m', 14400, '4hour', 4, '1Y'], 'D': ['1d', 86400, 'eod', 1, '5Y'], 'W': ['1wk', 604800, 'eod', 1, '5Y'], 'M': ['1mo', 2592000, 'eod', 1, '5Y'] };
 const RANGE_ORDER = ['1D', '5D', '1M', '3M', '6M', '1Y', '5Y'];
 const AUTO_IV = { '1D': '5m', '5D': '15m', '1M': '1h', '3M': 'D', '6M': 'D', '1Y': 'D', '5Y': 'W' };
-// -> { range, iv } with the range shortened to what the data source serves for that interval
+// range limit per interval
 function plan(range, iv) {
   if (!RANGES[range]) range = '6M'; if (!iv || iv === 'auto' || !IVS[iv]) iv = AUTO_IV[range];
   if (RANGE_ORDER.indexOf(range) > RANGE_ORDER.indexOf(IVS[iv][4])) range = IVS[iv][4];
   return { range, iv };
 }
-// merge n consecutive bars of the same day (2h / 4h from hourly bars)
+// merge bars (2h / 4h)
 function merge(bars, n) {
   if (n <= 1) return bars; const out = []; let cur = null, k = 0, day = null;
   for (const b of bars) { const d = Math.floor(b.time / 86400); if (!cur || k >= n || d !== day) { cur = { ...b }; out.push(cur); k = 0; day = d; } else { cur.high = Math.max(cur.high, b.high); cur.low = Math.min(cur.low, b.low); cur.close = b.close; cur.volume += b.volume; } k++; }
@@ -39,7 +39,7 @@ async function getJson(url, timeoutMs = 12000) {
 const num = v => (v == null || Number.isNaN(+v) ? null : +v);
 const clean = s => String(s).trim().toUpperCase().replace(/[^A-Z0-9.\-^=]/g, '');
 
-// ---------- Yahoo ----------
+// ---- Yahoo ----
 async function yahooChart(sym, range, interval) {
   const u = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=${range}&interval=${interval}&includePrePost=false`;
   const j = await getJson(u);
@@ -66,7 +66,7 @@ async function yahooBars(sym, rg, iv) {
   return merge(out, IVS[iv][3]);
 }
 
-// Top of book (bid/ask + sizes) from Yahoo's quote API, which needs a cookie + crumb.
+// bid / ask (cookie + crumb)
 let crumb = null;
 async function yahooCrumb(force) {
   if (crumb && !force && Date.now() - crumb.at < 3600e3) return crumb;
@@ -93,9 +93,8 @@ async function yahooBook(sym) {
   throw new Error('Yahoo refused the quote request');
 }
 
-// ---------- FMP ----------
-// Since beta 1.0.1 FMP is never used for quotes or charts: the free plan allows 250 calls a day, which live
-// refreshes would use up in minutes. Quotes and bars always come from Yahoo; FMP is used only by fin.js.
+// ---- FMP ----
+// FMP is only used by fin.js
 const testFmp = async key => {
   const j = await getJson(`https://financialmodelingprep.com/stable/profile?symbol=AAPL&apikey=${key}`);
   const p = Array.isArray(j) ? j[0] : null;
@@ -103,11 +102,11 @@ const testFmp = async key => {
   return p.companyName;
 };
 
-// Offline demo/test mode: set EQUITY_MOCK=1 (synthetic random-walk data, clearly labelled "Mock").
+// mock data (EQUITY_MOCK=1)
 function mockSeed(sym) { let h = 7; for (const c of sym) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; }
 function mockBars(sym, n, step) { let x = mockSeed(sym), p = 50 + (x % 400); const rnd = () => (x = (x * 1664525 + 1013904223) >>> 0) / 4294967296, out = [], now = Math.floor(Date.now() / 1000);
   for (let i = n; i > 0; i--) { const o = p, c = o * (1 + (rnd() - 0.48) * 0.02), h = Math.max(o, c) * (1 + rnd() * 0.006), l = Math.min(o, c) * (1 - rnd() * 0.006); out.push({ time: now - i * step, open: o, high: h, low: l, close: c, volume: Math.floor(1e6 + rnd() * 5e6) }); p = c; } return out; }
-// run fn over items with at most n requests at a time (so long lists load fully without flooding Yahoo)
+// limited parallel requests
 async function pool(items, n, fn) { const out = new Array(items.length); let i = 0;
   await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => { while (i < items.length) { const k = i++; out[k] = await fn(items[k]); } })); return out; }
 const MAX_SYMS = 500;
@@ -124,7 +123,7 @@ async function bars(symbol, range, settings, interval) {
   const data = await yahooBars(s, rg, iv);
   return { symbol: s, range: rg, iv, bars: data };
 }
-// latest trade for second charts (built live from ticks): light v7 quote call
+// latest trade
 let mockTick = {};
 async function tick(symbol) {
   const s = clean(symbol);
@@ -133,10 +132,10 @@ async function tick(symbol) {
   const q = j && j.quoteResponse && j.quoteResponse.result && j.quoteResponse.result[0]; if (!q || q.regularMarketPrice == null) throw new Error('no tick for ' + s);
   return { symbol: s, price: q.regularMarketPrice, volume: q.regularMarketVolume || 0, time: Date.now(), tradeTime: q.regularMarketTime ? q.regularMarketTime * 1000 : null, state: q.marketState || '' };
 }
-// Order book. Free sources only give level 1 (best bid/ask); `levels` stays null unless a depth feed is added.
+// order book
 async function book(symbol, settings, opts = {}) {
   const s = clean(symbol);
-  if (process.env.EQUITY_MOCK) {   // synthetic depth, clearly labelled (no depth for the chart's quote box, like the real path)
+  if (process.env.EQUITY_MOCK) {   // mock depth
     const mb = mockBars(s, 160, 86400), b = mb[mb.length - 1], tick = b.close > 100 ? 0.01 : 0.01, mid = Math.round(b.close * 100) / 100;
     let x = mockSeed(s) + Math.floor(Date.now() / 3000); const rnd = () => (x = (x * 1664525 + 1013904223) >>> 0) / 4294967296;
     const bids = [], asks = []; for (let i = 0; i < 12; i++) { bids.push([+(mid - tick * (i + 1)).toFixed(2), Math.round(100 + rnd() * 2400)]); asks.push([+(mid + tick * (i + 1)).toFixed(2), Math.round(100 + rnd() * 2400)]); }
@@ -146,7 +145,7 @@ async function book(symbol, settings, opts = {}) {
   try { l1 = await yahooBook(s); }
   catch (e) { const q = (await quotes([s], settings))[0] || {}; l1 = { symbol: s, bid: null, ask: null, last: q.price ?? null, levels: null, time: q.time || Date.now(), src: q.src || '', error: 'Bid/ask unavailable: ' + (e.message || e) }; }
   if (settings.ibkrDepth && opts.depth) {
-    // US stocks: a direct exchange feed (Nasdaq TotalView / NYSE OpenBook) wins over the broker when one is set up; the broker is the fallback.
+    // US: exchange feed first, broker fallback
     const us = !/\.[A-Z]{1,2}$/.test(s) && !s.startsWith('^'), ex = l1.exch || '', nyse = /^(NYQ|NYSE)$/.test(ex), tries = [], errs = [];
     const db = (key, ds) => () => require('./dbdepth').book(s, key, ds).then(d => Object.assign(d, { label: d.label + ' via Databento' }));
     if (us) {
@@ -172,11 +171,11 @@ async function book(symbol, settings, opts = {}) {
   if (depthErr) l1.depthError = depthErr;
   return l1;
 }
-// ---------- Chinese names (display language 繁體中文) ----------
-// Yahoo's search endpoint answers in the requested language: 0700.HK -> 騰訊控股, plus sector/industry in Chinese.
-// No crumb or key needed. Saved for a day; null when Yahoo has no Chinese name (the English one is used instead).
+// ---- Chinese names ----
+// Yahoo search in Chinese
+// cached a day
 const CJK = /[\u3400-\u9fff]/;
-const zhCache = new Map();   // symbol -> {t, v}
+const zhCache = new Map();   // cache
 async function zhInfo(sym) {
   sym = clean(sym); if (!sym) return null;
   const c = zhCache.get(sym); if (c && Date.now() - c.t < 86400e3) return c.v;
@@ -192,8 +191,8 @@ async function zhInfo(sym) {
 }
 async function zhName(sym) { const v = await zhInfo(sym); return v && v.name || null; }
 
-// ---------- watchlist stats: fundamentals, beta / alpha vs SPY, ATM option greeks, FX ----------
-const statCache = new Map();   // symbol -> {t, v}
+// ---- watchlist stats ----
+const statCache = new Map();   // cache
 async function yJson(url, retry = true) {
   const c = await yahooCrumb(); const r = await fetch(url + (url.includes('?') ? '&' : '?') + 'crumb=' + encodeURIComponent(c.crumb), { headers: { 'User-Agent': UA, Cookie: c.cookie, Accept: 'application/json' } });
   if (r.status === 401 && retry) { await yahooCrumb(true); return yJson(url, false); }
@@ -201,14 +200,14 @@ async function yJson(url, retry = true) {
 }
 const nc = x => x && typeof x === 'object' && 'raw' in x ? num(x.raw) : num(x);
 function normCdf(x) { const t = 1 / (1 + 0.2316419 * Math.abs(x)), d = 0.3989423 * Math.exp(-x * x / 2), p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))); return x > 0 ? 1 - p : p; }
-// Black-Scholes call delta and theta per calendar day
+// call delta and theta
 function callGreeks(S, K, T, vol, r = 0.04) {
   if (!(S > 0 && K > 0 && T > 0 && vol > 0)) return { delta: null, theta: null };
   const sq = Math.sqrt(T), d1 = (Math.log(S / K) + (r + vol * vol / 2) * T) / (vol * sq), d2 = d1 - vol * sq, pdf = Math.exp(-d1 * d1 / 2) / Math.sqrt(2 * Math.PI);
   return { delta: normCdf(d1), theta: (-S * pdf * vol / (2 * sq) - r * K * Math.exp(-r * T) * normCdf(d2)) / 365 };
 }
 const rets = b => b.slice(1).map((x, i) => ({ t: x.time, r: x.close / b[i].close - 1 }));
-function betaAlpha(bs, bm) {   // daily returns over the past year, aligned by date; alpha = annualised (Jensen, risk-free 0)
+function betaAlpha(bs, bm) {   // alpha vs SPY
   const m = new Map(rets(bm).map(x => [Math.floor(x.t / 86400), x.r])), pr = rets(bs).map(x => [x.r, m.get(Math.floor(x.t / 86400))]).filter(x => x[1] != null);
   if (pr.length < 30) return { beta: null, alpha: null, vol: null };
   const n = pr.length, ma = pr.reduce((s, x) => s + x[0], 0) / n, mb = pr.reduce((s, x) => s + x[1], 0) / n; let cov = 0, vb = 0, va = 0; pr.forEach(([a, b]) => { cov += (a - ma) * (b - mb); vb += (b - mb) ** 2; va += (a - ma) ** 2; });
@@ -226,7 +225,7 @@ async function oneStat(s, spy) {
   if (sum.status === 'fulfilled' && sum.value) { const d = sum.value.summaryDetail || {}, k = sum.value.defaultKeyStatistics || {}; out.betaY = nc(d.beta) ?? nc(k.beta); out.peg = nc(k.pegRatio); out.short = nc(k.shortPercentOfFloat) != null ? nc(k.shortPercentOfFloat) * 100 : null; if (out.pe == null) out.pe = nc(d.trailingPE); }
   if (bs.status === 'fulfilled' && spy) { const ba = betaAlpha(bs.value, spy); out.beta = ba.beta; out.alpha = ba.alpha; out.hv = ba.vol; const b = bs.value, l = b[b.length - 1]; if (out.price == null) out.price = l.close;
     if (out.hi52 == null) { out.hi52 = Math.max(...b.map(x => x.high)); out.lo52 = Math.min(...b.map(x => x.low)); } out.ytd = (() => { const y = new Date().getFullYear(), f = b.find(x => new Date(x.time * 1000).getFullYear() === y); return f ? (l.close / f.close - 1) * 100 : null; })(); }
-  // nearest-expiry (at least 7 days out) at-the-money call; IV from the chain, else 1Y historical volatility
+  // ATM call greeks
   if (opt.status === 'fulfilled' && opt.value && out.price) {
     try { let ch = opt.value; const now = Date.now() / 1000, exps = ch.expirationDates || [], e = exps.find(x => x - now > 7 * 86400) || exps[0];
       if (e && (!ch.options[0] || ch.options[0].expirationDate !== e)) ch = (await yJson(`https://query2.finance.yahoo.com/v7/finance/options/${encodeURIComponent(s)}?date=${e}`)).optionChain.result[0];
@@ -248,9 +247,9 @@ async function stats(symbols, opts = {}) {
   return pool(syms, 6, async s => { let c = statCache.get(s); if (c && Date.now() - c.t >= 30 * 60e3) c = null;
     try { let v = c && c.v; if (!v) { v = await oneStat(s, spy); statCache.set(s, { t: Date.now(), v }); } return zh ? await withZh(v) : v; } catch (e) { return { symbol: s, error: String(e.message || e) }; } });
 }
-// Chinese mode: the Chinese company name when Yahoo has one, the English one kept as nameEn
+// Chinese name
 async function withZh(v) { const n = await zhName(v.symbol).catch(() => null); return n ? Object.assign({}, v, { name: n, nameEn: v.name }) : v; }
-// FX: how many units of `to` one unit of `from` buys
+// FX rates
 async function fx(pairs) {
   const out = {};
   await Promise.all((pairs || []).slice(0, 20).map(async ([f, t]) => { f = String(f).toUpperCase().slice(0, 3); t = String(t).toUpperCase().slice(0, 3); const k = f + t; if (f === t) { out[k] = 1; return; }

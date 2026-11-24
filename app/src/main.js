@@ -10,8 +10,8 @@ const finData = require('./fin');
 const dir = () => app.getPath('userData');
 const file = n => path.join(dir(), n);
 const readJson = (n, d) => { try { return JSON.parse(fs.readFileSync(file(n), 'utf8')); } catch (e) { return d; } };
-let cached = null;   // decrypted settings, rebuilt only after settings.json changes (it is read on every quote/book refresh)
-let wlOwn = '';   // last watchlists.json text the app wrote, so the file watcher only reacts to outside edits
+let cached = null;   // settings cache
+let wlOwn = '';   // last watchlists.json write
 const writeJson = (n, v) => { fs.mkdirSync(dir(), { recursive: true }); const t = JSON.stringify(v, null, 2); if (n === 'watchlists.json') wlOwn = t; fs.writeFileSync(file(n), t); if (n === 'settings.json') cached = null; };
 
 const PLAIN = { pythonPath: '', cCompiler: '', aiProvider: 'ollama', claudeModel: 'claude-opus-5-5', ollamaUrl: 'http://127.0.0.1:11434', ollamaModel: 'gemma4',
@@ -19,8 +19,7 @@ const PLAIN = { pythonPath: '', cCompiler: '', aiProvider: 'ollama', claudeModel
   tigerId: '', tigerLicense: '', schwabCallback: 'https://127.0.0.1', tvFeed: 'off', obFeed: 'off' };
 const DEPTH_SOURCES = ['none', 'ibkr', 'futu', 'longbridge', 'tiger', 'schwab'];
 const AI_IDS = Object.keys(ai.OAI);
-// Secrets (API keys) are encrypted with Windows DPAPI via safeStorage and only ever decrypted here in the main process.
-// If the OS store is unavailable the key is kept in memory for this session only, and the page is told so.
+// keys: encrypted with DPAPI, decrypted only here
 const BROKER_SECRETS = ['lbAppKey', 'lbAppSecret', 'lbToken', 'tigerKey', 'tigerToken', 'schwabKey', 'schwabSecret', 'schwabRefresh', 'tvKey', 'obKey'];
 const SECRETS = ['fmpKey', 'anthropicKey', ...BROKER_SECRETS, ...AI_IDS.map(k => 'ai_' + k)];
 const LEGACY = { fmpKey: 'fmpKeyEnc', anthropicKey: 'anthropicKeyEnc' };
@@ -28,7 +27,7 @@ const sessionSecrets = {};
 const canEncrypt = () => { try { return safeStorage.isEncryptionAvailable(); } catch (e) { return false; } };
 const dec = enc => { if (!enc) return ''; try { return safeStorage.decryptString(Buffer.from(enc, 'base64')); } catch (e) { return ''; } };
 const secret = (s, k) => sessionSecrets[k] || dec((s.secrets || {})[k]) || (LEGACY[k] ? dec(s[LEGACY[k]]) : '');
-// v1.10 had one Databento key under "depth source". Move it to the matching direct feed (still encrypted; the blob is moved as is).
+// migrate old Databento key
 function migrate() {
   sealPlain();
   const s = readJson('settings.json', {}); if (s.depthSource !== 'databento' && !(s.secrets || {}).databentoKey) return;
@@ -38,22 +37,22 @@ function migrate() {
   if (s.depthSource === 'databento') s.depthSource = 'none';
   delete s.dbDataset; writeJson('settings.json', s);
 }
-// Any key that an old version or a hand edit left as plain text in settings.json is encrypted (or, without secure storage, moved to memory) and removed from the file.
+// encrypt plain-text keys
 function sealPlain() {
   const s = readJson('settings.json', {}), plain = SECRETS.filter(k => typeof s[k] === 'string' && s[k].trim()); if (!plain.length) return;
   s.secrets = s.secrets || {};
   for (const k of plain) { const v = s[k].trim(); delete s[k]; if (canEncrypt()) { try { s.secrets[k] = safeStorage.encryptString(v).toString('base64'); continue; } catch (e) {} } sessionSecrets[k] = v; }
   writeJson('settings.json', s);
 }
-function saveSecret(k, v) {   // used by the Schwab adapter when Schwab issues a new refresh token
+function saveSecret(k, v) {   // Schwab refresh token
   if (!SECRETS.includes(k)) return; const s = readJson('settings.json', {}); s.secrets = s.secrets || {};
   if (canEncrypt()) try { s.secrets[k] = safeStorage.encryptString(v).toString('base64'); writeJson('settings.json', s); return; } catch (e) {}
   sessionSecrets[k] = v; cached = null;
 }
-// Error text goes to the window: strip any saved key (and apikey= query values) from it first.
+// hide keys in errors
 function scrub(e) { let m = String((e && e.message) || e).replace(/(apikey|api_key|key|token)=[^&\s"']+/gi, '$1=•••'); const s = settings(); SECRETS.forEach(k => { if (s[k] && s[k].length > 5) m = m.split(s[k]).join('•••'); }); return m; }
 let migrated = false;
-function settings() {            // includes the decrypted keys; never sent to the page
+function settings() {   // with keys: never sent to the page
   if (!migrated) { migrated = true; try { migrate(); } catch (e) {} }
   if (cached) return Object.assign({}, cached);
   const s = readJson('settings.json', {}), out = { provider: s.provider || 'fmp-first', refreshSec: s.refreshSec || 20, ibkrDepth: !!s.ibkrDepth };
@@ -76,8 +75,8 @@ ipcMain.handle('quotes', (_e, syms) => provider.quotes(Array.isArray(syms) ? sym
 ipcMain.handle('book', async (_e, sym, o) => { try { return await provider.book(String(sym), settings(), { depth: !!(o && o.depth) }); } catch (e) { return { error: scrub(e) }; } });
 ipcMain.handle('bars', async (_e, sym, range, iv) => { try { return await provider.bars(String(sym), String(range), settings(), iv ? String(iv) : 'auto'); } catch (e) { return { error: scrub(e) }; } });
 ipcMain.handle('tick', async (_e, sym) => { try { return await provider.tick(String(sym)); } catch (e) { return { error: scrub(e) }; } });
-const isZh = () => (readJson('lang.json', {}) || {}).lang === 'zh-HK';   // display language 繁體中文: Chinese sources first (news, names, FIN profile)
-const L = (en, zh) => (isZh() ? zh : en);   // file-dialog titles in the chosen display language
+const isZh = () => (readJson('lang.json', {}) || {}).lang === 'zh-HK';   // Chinese mode
+const L = (en, zh) => (isZh() ? zh : en);   // dialog titles
 async function newsFor(o) {   // o: { sym, sources, off }
   const zh = isZh(), sym = String(o.sym || '');
   const zhName = zh && sym ? await provider.zhName(sym).catch(() => null) : null;
@@ -90,9 +89,9 @@ ipcMain.handle('open:url', (_e, u) => { u = String(u || ''); if (/^https?:\/\/[^
 ipcMain.handle('fin', async (_e, sym) => { try { return await finData.fin(String(sym || '').slice(0, 30), settings(), { zh: isZh() }); } catch (e) { return { error: scrub(e).slice(0, 300) }; } });
 ipcMain.handle('stats', async (_e, syms) => { try { return await provider.stats(Array.isArray(syms) ? syms.map(String) : [], { zh: isZh() }); } catch (e) { return { error: scrub(e) }; } });
 ipcMain.handle('fx', async (_e, pairs) => { try { return await provider.fx(Array.isArray(pairs) ? pairs : []); } catch (e) { return {}; } });
-// Watchlists from a file: EquityDesk export, a list of tickers, {lists:[...]}, or a .txt/.csv of tickers
+// watchlist import
 const TK = /^[A-Za-z0-9^][A-Za-z0-9.\-=^]{0,14}$/;
-// "700 HK" / "7203 JT" (Bloomberg style) -> Yahoo; a bare number like 700 gets the suffix of the user's primary market
+// market codes -> Yahoo
 const BBG = { HK: t => t.padStart(4, '0') + '.HK', JP: '.T', JT: '.T', TT: '.TW', KS: t => t.padStart(6, '0') + '.KS', CH: t => t.padStart(6, '0') + (/^[69]/.test(t.padStart(6, '0')) ? '.SS' : '.SZ'), LN: '.L', GR: '.DE', GY: '.DE', FP: '.PA', SW: '.SW', AU: '.AX', CT: '.TO', IN: '.NS', SP: '.SI', US: '', UN: '', UW: '', UQ: '' };
 const NUM_HOME = { HK: 'HK', TKY: 'JT', TPE: 'TT', SEL: 'KS', SHA: 'CH' };
 function normSym(s, home) {
@@ -127,7 +126,7 @@ ipcMain.handle('wl:import', async () => {
   return out.length ? { lists: out } : { error: 'No ticker symbols found in that file.' };
 });
 ipcMain.handle('wl:openFile', async () => { const f = file('watchlists.json'); if (!fs.existsSync(f)) writeJson('watchlists.json', { lists: [] }); const e = await shell.openPath(f); return e ? { error: e } : { ok: true }; });
-function watchWl(win) {   // tell the page when watchlists.json is saved by another program (Notepad, a script)
+function watchWl(win) {   // watchlists.json changed outside
   fs.watchFile(file('watchlists.json'), { interval: 1500 }, () => { let t = ''; try { t = fs.readFileSync(file('watchlists.json'), 'utf8'); } catch (e) { return; }
     if (t && t !== wlOwn && !win.isDestroyed()) { wlOwn = t; win.webContents.send('wl:changed'); } });
 }
@@ -172,7 +171,7 @@ ipcMain.handle('settings:set', (_e, p) => {
 });
 ipcMain.handle('keys:clearAll', () => { const s = readJson('settings.json', {}); delete s.secrets; Object.values(LEGACY).forEach(k => delete s[k]); SECRETS.forEach(k => { delete s[k]; delete sessionSecrets[k]; }); writeJson('settings.json', s); return publicSettings(); });
 ipcMain.handle('keys:folder', () => { shell.openPath(dir()); return true; });
-ipcMain.handle('key:test', async (_e, which) => {   // checks a saved key against its service; the key itself never leaves this process
+ipcMain.handle('key:test', async (_e, which) => {   // key test
   const s = settings();
   try {
     if (which === 'fmpKey') { if (!s.fmpKey) return { ok: false, msg: 'No FMP key saved.' }; if (!finData.fmpCount(dir(), 1)) return { ok: false, msg: "Today's FMP calls are used up; try again tomorrow." }; const n = await provider.testFmp(s.fmpKey); return { ok: true, msg: `FMP OK: ${n}` }; }
@@ -182,7 +181,7 @@ ipcMain.handle('key:test', async (_e, which) => {   // checks a saved key agains
     return { ok: false, msg: 'Unknown key' };
   } catch (e) { let m = scrub(e) + (e.cause && e.cause.code ? ` (${e.cause.code}: check your internet connection or firewall)` : ''); SECRETS.forEach(k => { if (s[k] && s[k].length > 6) m = m.split(s[k]).join('***'); }); return { ok: false, msg: m.slice(0, 300) }; }
 });
-// Schwab sign-in: the login page opens in the user's own browser; they paste back the address it lands on. Only the one-time code is used.
+// Schwab sign-in
 ipcMain.handle('schwab:login', () => { try { shell.openExternal(require('./brokers').BROKERS.schwab.authUrl(settings())); return { ok: true }; } catch (e) { return { ok: false, msg: scrub(e) }; } });
 ipcMain.handle('schwab:code', async (_e, pasted) => {
   const s = settings();
@@ -191,7 +190,7 @@ ipcMain.handle('schwab:code', async (_e, pasted) => {
 });
 ipcMain.handle('schwab:signout', () => { require('./brokers').BROKERS.schwab.signOut(); const s = readJson('settings.json', {}); if (s.secrets) delete s.secrets.schwabRefresh; delete sessionSecrets.schwabRefresh; writeJson('settings.json', s); return publicSettings(); });
 // ---- AI assistant ----
-// Read-only tools the model can call to look at the app's own data. Nothing here can trade, change settings or see keys.
+// read-only tools for the AI
 const TOOL_DEFS = [
   ['app_state', "What is open in Equity Desk: charts (symbol, interval, range, indicators), the MON monitor list, named watchlists, analyst picks and the user's drawn price levels.", {}],
   ['quotes', 'Latest quotes (price, change, % change, day high/low, volume, currency, source) for up to 30 symbols.', { symbols: { type: 'array', items: { type: 'string' } } }, ['symbols']],
@@ -228,7 +227,7 @@ async function runTool(name, a) {
 ipcMain.handle('ai:chat', (e, id, messages) => ai.chat(String(id), Array.isArray(messages) ? messages : [], settings(), t => { if (!e.sender.isDestroyed()) e.sender.send('ai:delta', String(id), t); }, { defs: TOOL_DEFS, run: runTool }));
 ipcMain.handle('ai:stop', (_e, id) => ai.stop(String(id)));
 ipcMain.handle('ai:models', (_e, pv) => ai.models(settings(), String(pv || settings().aiProvider)));
-// ---- local models (Ollama): install Ollama, download / remove Gemma 4 and gpt-oss ----
+// ---- local models (Ollama) ----
 const local = require('./local');
 local.onProgress(p => BrowserWindow.getAllWindows().forEach(w => { if (!w.isDestroyed()) w.webContents.send('local:progress', p); }));
 const lwrap = f => async (...a) => { try { return await f(...a); } catch (e) { return { ok: false, msg: scrub(e).slice(0, 300) }; } };
@@ -270,10 +269,10 @@ ipcMain.handle('desk:build', (_e, d) => {
   } catch (e) { return { error: scrub(e) }; }
 });
 ipcMain.handle('template', () => fs.readFileSync(path.join(__dirname, 'desk-template.html'), 'utf8'));
-// ---- custom indicators (Python / C) ----
+// ---- custom indicators ----
 const wrap = f => async (_e, ...a) => { try { return await f(...a); } catch (e) { return { error: scrub(e).slice(0, 2000) }; } };
 ipcMain.handle('ind:list', () => ind.list());
-// ---- custom UI themes (cosmetic only; see skin.js) ----
+// ---- custom UI themes ----
 const skin = require('./skin');
 ipcMain.handle('skin:get', () => skin.sanitize(readJson('skin.json', {})));
 ipcMain.handle('skin:set', (_e, t) => { const dropped = [], th = skin.sanitize(t, dropped); writeJson('skin.json', th); return { theme: th, dropped }; });

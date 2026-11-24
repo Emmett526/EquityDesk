@@ -1,8 +1,5 @@
 'use strict';
-// Panel layout that works like Blender's areas: a tree of splits whose leaves are areas (tab groups).
-//  - Drag an area's corner inward to split it; drag it into a neighbouring area to join (the neighbour is absorbed as tabs).
-//  - Ctrl-drag a corner onto any area to swap the two. Drag an edge to resize; right-click an edge or header for area options.
-//  - Each area's header has an editor-type menu, like Blender. Tabs can also be dragged onto another area's edge or middle.
+// panel layout (Blender-style areas)
 window.Layout = (() => {
   function create(root, o) {
     let tree = null, active = null, maxed = null;
@@ -18,7 +15,7 @@ window.Layout = (() => {
       if (p.ch.length === 1) replace(p, p.ch[0]);
     }
     function take(id) { const g = groupOf(id); if (!g) return; g.tabs = g.tabs.filter(t => t !== id); if (g.active === id) g.active = g.tabs[g.tabs.length - 1]; if (!g.tabs.length) detachNode(g); }
-    // put node `ng` beside `target`; `first` = ng goes left/top; f = share of the space for the first child
+    // split
     function besides(target, ng, dir, first, f = 0.5) {
       const p = parentOf(target);
       if (p && p.dir === dir) { const i = p.ch.indexOf(target), s = p.sizes[i]; const a = s * f, b = s * (1 - f); p.ch.splice(first ? i : i + 1, 0, ng); p.sizes.splice(i, 1, ...(first ? [a, b] : [a, b])); }
@@ -30,7 +27,7 @@ window.Layout = (() => {
       besides(target, { k: 'group', id: gid(), tabs: [id], active: id }, zone === 'left' || zone === 'right' ? 'row' : 'col', zone === 'left' || zone === 'top');
     }
     function siblings(a, b) { const p = parentOf(a); if (!p || p !== parentOf(b)) return false; return Math.abs(p.ch.indexOf(a) - p.ch.indexOf(b)) === 1; }
-    function join(keep, gone) {       // keep absorbs gone: its space and its panels (as tabs)
+    function join(keep, gone) {   // join
       const p = parentOf(keep), i = p.ch.indexOf(keep), j = p.ch.indexOf(gone);
       p.sizes[i] += p.sizes[j]; p.sizes.splice(j, 1); p.ch.splice(j, 1); keep.tabs.push(...gone.tabs);
       if (p.ch.length === 1) replace(p, p.ch[0]);
@@ -76,7 +73,7 @@ window.Layout = (() => {
         .forEach(([s, ttl, f]) => { const b = document.createElement('button'); b.textContent = s; b.title = ttl; b.onclick = f; hd.appendChild(b); });
       const body = document.createElement('div'); body.className = 'lg-body';
       g.tabs.forEach(id => { const p = o.mount(id); p.style.display = id === g.active ? '' : 'none'; body.appendChild(p); });
-      el.addEventListener('mousedown', () => { if (g.active !== active) focusArea(g); });   // no re-render here: rebuilding the DOM mid-click would swallow the click
+      el.addEventListener('mousedown', () => { if (g.active !== active) focusArea(g); });   // no re-render mid-click
       if (!isMax) ['tl', 'tr', 'bl', 'br'].forEach(c => { const k = document.createElement('div'); k.className = 'lg-corner ' + c; k.title = 'Drag inward to split · into a neighbour to join · Ctrl-drag to swap';
         k.onmousedown = e => { if (e.button === 0) { e.stopPropagation(); e.preventDefault(); cornerDrag(e, g, c); } }; el.appendChild(k); });
       el.append(hd, body); return el;
@@ -93,7 +90,7 @@ window.Layout = (() => {
     const overlay = cls => { const d = document.createElement('div'); d.className = cls; document.body.appendChild(d); return d; };
     const place2 = (d, r) => Object.assign(d.style, { display: 'block', left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
     function groupAt(x, y) { const els = [...root.querySelectorAll('.lg-group')]; return els.find(e => { const r = e.getBoundingClientRect(); return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom; }); }
-    // Blender-style corner action zone
+    // corner drag zone
     function cornerDrag(e, g, corner) {
       const x0 = e.clientX, y0 = e.clientY, src = [...root.querySelectorAll('.lg-group')].find(x => x._g === g), sr = src.getBoundingClientRect();
       const line = overlay('lg-splitline'), shade = overlay('lg-joinshade'), tip = overlay('lg-ghost'); let act = null;
@@ -169,7 +166,7 @@ window.Layout = (() => {
       set(s) { tree = s && s.tree || null; active = s && s.active; if (!groupOf(active)) { const g = groups()[0]; active = g ? g.active : null; } maxed = null; render(); },
       add(id, nextTo, zone = 'center') { const g = nextTo ? groupOf(nextTo) : groupOf(active); place(id, g || null, zone); activate(id); },
       split(id, dir) { const g = groupOf(id); if (g) splitArea(g, dir, 0.5, false); },
-      joinNext(id) {   // keyboard join: the active area absorbs its next (else previous) neighbour area
+      joinNext(id) {   // keyboard join
         const g = groupOf(id), p = g && parentOf(g); if (!p) return false; const i = p.ch.indexOf(g), t = [p.ch[i + 1], p.ch[i - 1]].find(n => n && n.k === 'group');
         if (!t) return false; maxed = null; join(g, t); activate(g.active); return true; },
       close, activate, toggleMax, ids: () => groups().flatMap(g => g.tabs), active: () => active, rerender: render,

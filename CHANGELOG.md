@@ -1,6 +1,36 @@
 # Changelog
 
-Versions follow [semantic versioning](https://semver.org). Beta releases are numbered `1.0.0-beta.N`.
+Versions follow [semantic versioning](https://semver.org). Beta releases are numbered `X.Y.Z-beta.N`.
+
+## Beta 1.1.2 (1.1.0-beta.3) - 2026-11-24
+
+- New technicals rating, Strong sell to Strong buy, from a year of daily prices: 12 moving averages (SMA and EMA 10 to 200) and 9 oscillators (RSI, Stochastic, CCI, ADX, Awesome oscillator, Momentum, MACD, Williams %R, Ultimate oscillator) each vote buy, neutral or sell. Shown in the same bar style as the analyst rating, in FIN > Estimates and VAL > Forecasts, with every indicator's value and signal under "All indicators"; VAL > Summary shows the result too
+- New tab order: 1 DESK, 2 MON, 3 GP, 4 FIN, 5 VAL, 6 QUANTS, 7 NEWS, 8 SET, 9 HELP (Ctrl+number follows; keys you changed yourself stay as you set them)
+- New tab 6 QUANTS: coming soon
+- CUSTOM (custom indicators and custom UI) moved inside SET: SET has General and Custom at the top. Ctrl+Shift+8, or the commands CUSTOM, IND and UI, open it directly
+- Theme files can name the new tab QUANTS; saved tab orders from older versions still work (missing tabs are added at the end)
+- Source code comments rewritten as short labels by job
+
+## Beta 1.1.1 (1.1.0-beta.2) - 2026-11-17
+
+- Fixed: MON and watchlists stopped loading prices and stats after the first 60 tickers. Any number of tickers now load (up to 500), fetched 12 at a time so Yahoo isn't flooded
+- A MON refresh no longer starts while the previous one is still running, so long lists don't pile up requests
+- VAL DCF is more realistic, especially for cyclical stocks at a peak (for example memory chip makers): it now projects revenue and free cash flow margin separately. Next year's analyst growth is no longer carried for five years; it moves to a year-5 rate (analysts' 5-year estimate, or at most 8%). Today's FCF margin moves halfway back towards its usual level over five years. New boxes: revenue growth year 1, revenue growth year 5, FCF margin
+- VAL relative valuation: when margins are far above their usual level, earnings and cash flow are scaled back halfway before applying the usual multiples, with a note saying so
+- VAL bear and bull cases now also move the year-5 growth and the FCF margin
+
+## Beta 1.1.0 (1.1.0-beta.1) - 2026-11-16
+
+- New tab 6 VAL (Valuation), Ctrl+6, or type a ticker with VAL, DCF, VALUATION or FV (for example NVDA VAL, AAPL DCF)
+- Summary: estimated intrinsic value (average of the DCF and relative values), upside or downside against the price, a fairly valued / undervalued / overvalued label, and a bar that shows the price against the bear, base and bull values
+- DCF: 10-year free cash flow model with bear, base and bull scenarios; change revenue growth, FCF margin, discount rate and terminal growth yourself (Reset puts them back); projection table, terminal value, enterprise to equity bridge and a discount rate / terminal growth sensitivity grid
+- Relative valuation: today's P/E, P/S, P/FCF and EV/EBITDA against the stock's own history, with the price each multiple implies
+- Discount rate: WACC built step by step (risk-free rate, beta, equity risk premium, cost of debt, tax, weights)
+- Forecasts: analyst price targets (low, mean, high) and revenue / EPS estimates where Yahoo has them, plus past EPS against estimates
+- Fundamentals: profitability (margins, ROE, ROIC), solvency (debt, cash, interest cover, current ratio) and an economic moat check from six tests (Wide, Narrow or None found)
+- All VAL text in English and 繁體中文（香港）; numbers in the stock's trading currency
+- VAL figures are simple models for research, not advice
+- Tabs 6 and 7 swapped: CUSTOM (indicators and UI themes) is now tab 7 (Ctrl+7) and VAL is tab 6 (Ctrl+6); keys you changed yourself stay as you set them
 
 ## Beta 1.0.2 (1.0.0-beta.3) - 2026-11-13
 

@@ -1,8 +1,8 @@
 'use strict';
-// Level 2 order book from Interactive Brokers (TWS / IB Gateway API). Read-only: it only requests market depth, never orders.
-// Needs IB Gateway or TWS running with the API enabled, plus IBKR market-depth data subscriptions (e.g. Nasdaq TotalView).
+// IBKR level 2 (read-only, no orders)
+// needs TWS / IB Gateway + depth subscriptions
 const { IBApi, EventName, Stock } = require('@stoqey/ib');
-const INFO = new Set([2104, 2106, 2107, 2108, 2119, 2158]);   // "data farm connection is OK" style notices
+const INFO = new Set([2104, 2106, 2107, 2108, 2119, 2158]);   // info notices
 let api = null, key = '', connected = false, lastErr = '', sub = null, nextId = 7000, idleT = null;
 
 function ensure(s) {
@@ -24,7 +24,7 @@ function ensure(s) {
   try { api.connect(+s.ibClientId || 37); } catch (e) { lastErr = String(e.message || e); }
 }
 const wait = ms => new Promise(r => setTimeout(r, ms));
-// Venue: SMART aggregates every venue you subscribe to; ISLAND = Nasdaq TotalView, NYSE = NYSE OpenBook, ARCA = NYSE Arca book. Non-US symbols use their home exchange.
+// venue
 const VENUE_NAME = { SMART: 'SMART depth', ISLAND: 'Nasdaq TotalView', NYSE: 'NYSE OpenBook', ARCA: 'NYSE Arca', BATS: 'Cboe BZX', IEX: 'IEX' };
 const HOME = { HK: ['SEHK', 'HKD', s => String(+s)], T: ['TSEJ', 'JPY'], L: ['LSE', 'GBP'], DE: ['IBIS', 'EUR'], PA: ['SBF', 'EUR'], AS: ['AEB', 'EUR'], SW: ['EBS', 'CHF'], TO: ['TSE', 'CAD'], AX: ['ASX', 'AUD'], SI: ['SGX', 'SGD'], NS: ['NSE', 'INR'], MI: ['BVME', 'EUR'], MC: ['BM', 'EUR'], KS: ['KSE', 'KRW'] };
 function contract(sym, venue) {
@@ -44,7 +44,7 @@ async function book(sym, s) {
     api.reqMktDepth(sub.id, k.c, 10, k.smart);
     for (let i = 0; i < 20 && !sub.t && !sub.err; i++) await wait(100);
   }
-  clearTimeout(idleT); idleT = setTimeout(() => { if (sub) try { api.cancelMktDepth(sub.id, true); } catch (e) {} sub = null; }, 60000);   // free the depth slot when nobody is watching
+  clearTimeout(idleT); idleT = setTimeout(() => { if (sub) try { api.cancelMktDepth(sub.id, true); } catch (e) {} sub = null; }, 60000);   // free depth slot
   if (sub.err) { const e = sub.err; sub = null; throw new Error('IBKR depth: ' + e); }
   const clean = a => a.filter(Boolean).map(([p, z, mm]) => [p, z, mm]);
   return { bids: clean(sub.bids), asks: clean(sub.asks), time: sub.t || Date.now(), label: sub.label };

@@ -1,18 +1,17 @@
 'use strict';
-// Order book depth from other brokers' official market-data APIs. Read-only by design: every call below is a quote request.
-// Nothing in this file can place, change or cancel an order, read positions or balances, or unlock trading.
-//   futu       Futu / moomoo OpenD (runs on your PC, logged in with your Futu ID). Plain TCP + JSON on port 11111.
-//   longbridge Longbridge OpenAPI (app key, app secret, access token from open.longbridge.com).
-//   tiger      Tiger Brokers OpenAPI (Tiger ID + RSA private key from the Tiger developer page).
-//   schwab     Charles Schwab Trader API streamer: NASDAQ_BOOK / NYSE_BOOK (app key + secret, you sign in once a week).
+// broker order book depth (read-only, quotes only, no orders)
+// futu: OpenD on port 11111
+// longbridge: app key, secret, token
+// tiger: Tiger ID + RSA key
+// schwab: streamer book
 const net = require('net'), crypto = require('crypto');
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const parts = sym => { const m = String(sym).match(/^(.+)\.([A-Z]{1,2})$/); return m ? { base: m[1], sfx: m[2] } : { base: String(sym), sfx: '' }; };
 const usOnly = (sym, who) => { if (sym.startsWith('^')) throw new Error(`${who} has no order book for an index`); };
 const lv = (rows, p, v, n) => (rows || []).map(r => [+p(r), +v(r), n(r) ? n(r) + ' ord' : '']).filter(r => r[0] > 0 && r[1] > 0);
 
-// ---------------- Futu / moomoo OpenD ----------------
-// Protocol: 44-byte little-endian header ("FT", protoID, fmt=1 JSON, ver 0, serial, bodyLen, SHA1(body), 8 reserved) + JSON body.
+// ---- Futu / moomoo ----
+// header: 44 bytes + JSON body
 const FUTU_MKT = { '': 11, HK: 1, SS: 21, SZ: 22, SI: 31, T: 41, AX: 51, TO: 71 };
 const futu = { sock: null, key: '', buf: Buffer.alloc(0), serial: 1, pend: new Map(), ready: null, ka: null, subs: new Map(), name: 'Futu' };
 function futuSend(id, body, ms = 8000) {
@@ -36,7 +35,7 @@ function futuData(d) {
     if (futu.buf.toString('ascii', 0, 2) !== 'FT') return futuReset('Unexpected reply from OpenD. Is the port the API port (11111), not the WebSocket one?');
     const len = futu.buf.readUInt32LE(12); if (futu.buf.length < 44 + len) return;
     const sn = futu.buf.readUInt32LE(8), fmt = futu.buf.readUInt8(6), body = futu.buf.subarray(44, 44 + len); futu.buf = futu.buf.subarray(44 + len);
-    const p = futu.pend.get(sn); if (!p) continue; futu.pend.delete(sn);   // pushes are not registered, so anything unmatched is ignored
+    const p = futu.pend.get(sn); if (!p) continue; futu.pend.delete(sn);   // ignore pushes
     if (fmt !== 1) { p.rej(new Error('OpenD replied in an encrypted or protobuf format. Turn off RSA encryption for API connections in OpenD.')); continue; }
     try { p.res(JSON.parse(body.toString('utf8'))); } catch (e) { p.rej(new Error('Could not read the OpenD reply')); }
   }
@@ -76,7 +75,7 @@ futu.book = async (sym, s) => {
   const sec = futuSec(sym); await futuConnect(s);
   const id = sec.market + ':' + sec.code;
   if (!futu.subs.has(id)) {
-    if (futu.subs.size >= 40) {   // free old subscriptions (OpenD keeps a subscription at least a minute)
+    if (futu.subs.size >= 40) {   // free old subscriptions
       const old = [...futu.subs].filter(([, t]) => Date.now() - t > 65000).slice(0, 20);
       if (old.length) { await futuSend(3001, { c2s: { securityList: old.map(([k]) => { const [m, c] = k.split(/:(.*)/); return { market: +m, code: c }; }), subTypeList: [2], isSubOrUnSub: false } }).catch(() => {}); old.forEach(([k]) => futu.subs.delete(k)); }
     }
@@ -88,7 +87,7 @@ futu.book = async (sym, s) => {
 };
 futu.test = async s => { futuReset(); await futuConnect(s); return 'connected to OpenD at ' + futu.key; };
 
-// ---------------- Longbridge ----------------
+// ---- Longbridge ----
 const longbridge = { ctx: null, sig: '', name: 'Longbridge' };
 function lbSym(sym) {
   usOnly(sym, 'Longbridge'); const { base, sfx } = parts(sym);
@@ -111,7 +110,7 @@ longbridge.book = async (sym, s) => {
 };
 longbridge.test = async s => { longbridge.ctx = null; const ctx = await lbCtx(s); const lvl = await ctx.quoteLevel(); return 'quote level ' + (lvl || 'unknown'); };
 
-// ---------------- Tiger Brokers ----------------
+// ---- Tiger ----
 const tiger = { qc: null, sig: '', name: 'Tiger' };
 function tgSym(sym) {
   usOnly(sym, 'Tiger'); const { base, sfx } = parts(sym);
@@ -126,7 +125,7 @@ function tgClient(s) {
   const sig = crypto.createHash('sha256').update([s.tigerId, s.tigerKey, s.tigerLicense, s.tigerToken].join('\n')).digest('hex');
   if (tiger.qc && tiger.sig === sig) return tiger.qc;
   const T = require('@tigeropenapi/tigeropen');
-  // enableDynamicDomain:false stops the SDK spawning a helper process; tokenLoader keeps it from reading token files on disk.
+  // no helper process, no token files
   const cfg = T.createClientConfig({ tigerId: s.tigerId, privateKey: s.tigerKey, license: s.tigerLicense || undefined, token: s.tigerToken || undefined, tokenLoader: () => '', enableDynamicDomain: false, language: 'en_US' });
   tiger.qc = new T.QuoteClient(new T.HttpClient(cfg, undefined, { useQuoteServerUrl: true })); tiger.sig = sig;
   return tiger.qc;
@@ -139,9 +138,9 @@ tiger.book = async (sym, s) => {
 };
 tiger.test = async s => { tiger.qc = null; const r = await tgClient(s).getMarketState('US'); return 'connected' + (Array.isArray(r) && r[0] && r[0].marketStatus ? ' (US market: ' + r[0].marketStatus + ')' : ''); };
 
-// ---------------- Charles Schwab ----------------
-// OAuth: the user signs in on schwab.com in their own browser; we only ever receive the redirect URL with a one-time code.
-// The refresh token (7 days) is stored encrypted by main.js; the 30-minute access token stays in memory.
+// ---- Schwab ----
+// sign-in in the user's browser
+// refresh token stored encrypted
 const SCH = 'https://api.schwabapi.com';
 const schwab = { access: '', exp: 0, ws: null, wsReady: null, books: new Map(), subs: new Set(), req: 1, info: null, err: '', name: 'Schwab' };
 const schCb = s => s.schwabCallback || 'https://127.0.0.1';
@@ -155,7 +154,7 @@ async function schToken(s, body) {
   schwab.access = j.access_token; schwab.exp = Date.now() + ((+j.expires_in || 1800) - 60) * 1000;
   return j;
 }
-// Returns the new refresh token so main.js can encrypt and store it.
+// returns new refresh token
 schwab.exchange = async (s, pasted) => {
   if (!s.schwabKey || !s.schwabSecret) throw new Error('Save your Schwab app key and secret first.');
   let code = String(pasted || '').trim(); const m = code.match(/[?&]code=([^&#\s]+)/); if (m) code = m[1];
@@ -178,7 +177,7 @@ async function schStream(s) {
     const tok = await schAccess(s);
     const r = await fetch(SCH + '/trader/v1/userPreference', { headers: { Authorization: 'Bearer ' + tok, Accept: 'application/json' }, signal: AbortSignal.timeout(15000) });
     if (!r.ok) throw new Error('Schwab: could not get streamer details (HTTP ' + r.status + '). Your app needs the Accounts and Trading product for streaming.');
-    const pref = await r.json(), si = (pref.streamerInfo || [])[0];   // only the streamer fields are kept; account details in the reply are dropped
+    const pref = await r.json(), si = (pref.streamerInfo || [])[0];   // keep streamer fields only
     if (!si || !si.streamerSocketUrl) throw new Error('Schwab: no streamer details on this login');
     schwab.info = { url: si.streamerSocketUrl, cid: si.schwabClientCustomerId, corr: si.schwabClientCorrelId, ch: si.schwabClientChannel, fn: si.schwabClientFunctionId };
     const WS = require('ws'), ws = new WS(schwab.info.url); schwab.ws = ws;

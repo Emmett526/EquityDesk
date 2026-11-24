@@ -1,12 +1,11 @@
 'use strict';
-// Company financials for the FIN screen (TradingView-style Financials): statements, estimates, earnings, dividends, segments.
-// Yahoo Finance (no key) for almost everything; segments come from FMP when a key is saved. Runs in the main process.
-// FMP's free plan allows 250 calls a day, so FMP is used only here (never for quotes or charts), each answer is kept
-// on disk for 7 days in fmp-cache.json, calls are counted per day and the app stops at FMP_STOP to leave a margin.
+// FIN data: statements, estimates, earnings, dividends, segments
+// Yahoo, plus FMP for segments (main process)
+// FMP: 250 calls a day, 7-day cache, stop at FMP_STOP
 const provider = require('./provider');
 const fs = require('fs'), path = require('path');
 const FMP_LIMIT = 250, FMP_STOP = 240, SEG_TTL = 7 * 864e5, SEG_KEEP = 30 * 864e5;
-const today = () => new Date().toISOString().slice(0, 10);   // FMP counts calls per UTC day
+const today = () => new Date().toISOString().slice(0, 10);   // FMP daily count (UTC)
 function fmpLoad(dir) {
   let j = null; try { j = JSON.parse(fs.readFileSync(path.join(dir, 'fmp-cache.json'), 'utf8')); } catch (e) {}
   if (!j || typeof j !== 'object') j = {}; if (!j.seg || typeof j.seg !== 'object') j.seg = {};
@@ -18,11 +17,11 @@ function fmpSave(dir, j) {
     fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, 'fmp-cache.json'), JSON.stringify(j)); } catch (e) {}
 }
 function fmpUsage(dir) { const j = fmpLoad(dir); return { calls: j.calls || 0, limit: FMP_LIMIT, stop: FMP_STOP, cached: Object.keys(j.seg).length }; }
-function fmpCount(dir, n) {   // returns false (and counts nothing) when today's budget is used up
+function fmpCount(dir, n) {   // false when out of calls
   const j = fmpLoad(dir); if ((j.calls || 0) + n > FMP_STOP) return false;
   j.calls = (j.calls || 0) + n; fmpSave(dir, j); return true;
 }
-const usOnly = s => !/[.^=]/.test(s);   // Yahoo-style suffixes (0700.HK, ^GSPC, EURUSD=X) are not on FMP's free plan
+const usOnly = s => !/[.^=]/.test(s);   // non-US symbols skip FMP
 async function segments(sym, s) {
   const dir = s.dataDir, out = { product: [], geo: [], note: '', cached: false };
   if (!usOnly(sym)) { out.note = 'Revenue by business and by region comes from Financial Modeling Prep, whose free plan covers US stocks only.'; return out; }
@@ -39,7 +38,7 @@ async function segments(sym, s) {
   return out;
 }
 
-// statement rows: [Yahoo timeseries name, label, statement, kind]  kind: money | eps | shares
+// statement rows: [Yahoo name, label, statement, kind]
 const ROWS = [
   ['TotalRevenue', 'Total revenue', 'is'], ['CostOfRevenue', 'Cost of goods sold', 'is'], ['GrossProfit', 'Gross profit', 'is'], ['OperatingExpense', 'Operating expenses', 'is'],
   ['ResearchAndDevelopment', 'Research & development', 'is'], ['SellingGeneralAndAdministration', 'Selling, general & admin', 'is'], ['OperatingIncome', 'Operating income', 'is'],
@@ -53,7 +52,7 @@ const ROWS = [
   ['FreeCashFlow', 'Free cash flow', 'cf'], ['DepreciationAndAmortization', 'Depreciation & amortization', 'cf'], ['StockBasedCompensation', 'Stock-based compensation', 'cf'],
   ['CashDividendsPaid', 'Dividends paid', 'cf'], ['RepurchaseOfCapitalStock', 'Share buybacks', 'cf'], ['EndCashPosition', 'Cash at end of period', 'cf']
 ];
-const cache = new Map();   // symbol -> {t, v}
+const cache = new Map();   // cache
 const nc = x => x && typeof x === 'object' ? (Number.isFinite(+x.raw) ? +x.raw : null) : Number.isFinite(+x) && x !== null && x !== '' ? +x : null;
 const enc = encodeURIComponent;
 
@@ -70,11 +69,11 @@ async function timeseries(s, per) {
 async function summary(s, zh) {
   const mods = 'assetProfile,summaryDetail,defaultKeyStatistics,financialData,earnings,earningsHistory,earningsTrend,calendarEvents,recommendationTrend,price';
   const u = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${enc(s)}?modules=${mods}`;
-  // Chinese mode: ask Yahoo for the Hong Kong / Traditional Chinese edition (Chinese business summary where Yahoo has one); plain request if that fails
+  // Chinese summary
   if (zh) { try { return (await provider.yJson(u + '&lang=zh-Hant-HK&region=HK')).quoteSummary.result[0]; } catch (e) {} }
   return (await provider.yJson(u)).quoteSummary.result[0];
 }
-async function monthly(s) {   // month-end closes (for P/E history) and the dividend history
+async function monthly(s) {   // month-end closes + dividends
   const r = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${enc(s)}?range=10y&interval=1mo&events=div`, { headers: { 'User-Agent': provider.UA } });
   if (!r.ok) throw new Error('chart HTTP ' + r.status);
   const c = (await r.json()).chart.result[0], q = c.indicators.quote[0], px = [];
@@ -131,7 +130,7 @@ async function fin(sym, s, opts = {}) {
   zhLayer(v, zi.status === 'fulfilled' ? zi.value : null);
   cache.set(ck, { t: Date.now(), v }); return v;
 }
-// Chinese mode: Chinese company name, sector and industry when Yahoo has them; English kept in nameEn / sectorEn / industryEn
+// Chinese names
 function zhLayer(v, z) {
   if (!z) return v;
   if (z.name && z.name !== v.name) { v.nameEn = v.name; v.name = z.name; }
@@ -139,7 +138,7 @@ function zhLayer(v, z) {
   return v;
 }
 
-// ---- offline demo data (EQUITY_MOCK=1), clearly labelled ----
+// ---- mock data ----
 function mock(sym) {
   let x = 0; for (const ch of sym) x = (x * 31 + ch.charCodeAt(0)) >>> 0; const r = k => ((x >> k) % 1000) / 1000;
   const y0 = new Date().getFullYear() - 5, years = [0, 1, 2, 3, 4].map(i => `${y0 + i}-12-31`), base = 2e9 * (1 + r(3) * 40), gr = 1.08 + r(5) * 0.25;

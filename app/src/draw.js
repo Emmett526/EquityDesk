@@ -1,10 +1,9 @@
 'use strict';
-// TradingView-style drawing tools on a canvas over a Lightweight Charts chart.
-// Points are stored as {t: unix seconds, p: price}, so drawings survive range changes and restarts.
-// One instance per chart panel (Drawings.create); magnet / stay / hide / default style are shared by all panels.
-// Long / Short Position are risk-reward annotations only: nothing here places or sends orders.
+// chart drawing tools (canvas)
+// points: {t, p}
+// long / short = notes only, no orders
 window.Drawings = (() => {
-  // n = clicks to place (0 = freehand drag, -1 = click points, double-click or Enter to finish); txt = asks for text
+  // n = clicks to place, txt = asks for text
   const T = {
     cursor: { l: 'Cursor' }, eraser: { l: 'Eraser (click a drawing to delete it)' },
     trend: { n: 2, l: 'Trend line' }, ray: { n: 2, l: 'Ray' }, info: { n: 2, l: 'Info line' }, extended: { n: 2, l: 'Extended line' }, angle: { n: 2, l: 'Trend angle' },
@@ -53,7 +52,7 @@ window.Drawings = (() => {
   let list = [], sel = null, tool = 'cursor', pending = null, drag = null, undoStack = [], alive = true;
   const style = G.style;
 
-  // ---- coordinates: time <-> fractional bar index <-> x ----
+  // ---- coordinates ----
   function lmap() { const ts = chart.timeScale(), a = ts.logicalToCoordinate(0), b = ts.logicalToCoordinate(1); return a == null || b == null || a === b ? null : { a, s: b - a }; }
   function tToL(t) {
     const B = getBars(), n = B.length; if (!n) return null; if (n === 1) return 0;
@@ -79,14 +78,14 @@ window.Drawings = (() => {
     }
     return { t, p };
   }
-  const paneSize = () => { const p = chart.panes ? chart.panes()[0] : null;    // drawings live in the price pane only
+  const paneSize = () => { const p = chart.panes ? chart.panes()[0] : null;   // price pane only
     return { w: box.clientWidth - chart.priceScale('right').width(), h: p ? p.getHeight() : box.clientHeight - chart.timeScale().height() }; };
   const fmt = p => Math.abs(p) >= 1000 ? p.toFixed(1) : Math.abs(p) >= 1 ? p.toFixed(2) : p.toFixed(4);
   const pct = (a, b) => (b / a - 1) * 100;
   const sg = v => (v >= 0 ? '+' : '') ;
   const barIdx = t => { const n = getBars().length, l = tToL(t); return l == null ? null : Math.max(0, Math.min(n - 1, Math.round(l))); };
 
-  // ---- rendering helpers (every stroke also records hit segments in g.segs) ----
+  // ---- rendering ----
   let g = null, W = 0, H = 0;
   function alpha(c, a) { const h = String(c).replace('#', ''); const n = parseInt(h.length === 3 ? h.replace(/./g, '$&$&') : h.slice(0, 6), 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; }
   function seg(a, b) { ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); g.segs.push([a, b]); }
@@ -106,13 +105,13 @@ window.Drawings = (() => {
   const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
   function bez(a, c, b) { ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.quadraticCurveTo(c.x, c.y, b.x, b.y); ctx.stroke(); let p = a; for (let i = 1; i <= 24; i++) { const t = i / 24, q = { x: (1 - t) ** 2 * a.x + 2 * (1 - t) * t * c.x + t * t * b.x, y: (1 - t) ** 2 * a.y + 2 * (1 - t) * t * c.y + t * t * b.y }; g.segs.push([p, q]); p = q; } }
   function arrowHead(a, b, L, col) { const ang = Math.atan2(b.y - a.y, b.x - a.x); ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - L * Math.cos(ang - 0.45), b.y - L * Math.sin(ang - 0.45)); ctx.lineTo(b.x - L * Math.cos(ang + 0.45), b.y - L * Math.sin(ang + 0.45)); ctx.closePath(); ctx.fillStyle = col; ctx.fill(); }
-  function pattern(P, names, d, extra) {   // harmonic / wave patterns: legs, labels, optional ratio lines
+  function pattern(P, names, d, extra) {   // patterns
     if (extra && extra.fills) extra.fills.forEach(ix => fill(ix.map(i => P[i]).filter(Boolean), alpha(d.color, 0.1)));
     poly(P); P.forEach((p, i) => { if (!names[i]) return; const up = i > 0 && P[i - 1] && p.y < P[i - 1].y || i === 0 && P[1] && p.y < P[1].y; tag(p.x, p.y + (up ? -13 : 13), names[i], alpha(d.color, 0.9), '#000', 'center'); });
     if (extra && extra.ratios) { ctx.save(); ctx.setLineDash([4, 4]); ctx.lineWidth = 1; extra.ratios.forEach(([i, j, k, l]) => { if (!P[i] || !P[j]) return; seg(P[i], P[j]); const pts = d.pts, r = Math.abs((pts[l].p - pts[k].p) / ((pts[k].p - pts[i].p) || 1));
       if (P[k] && P[l] && Number.isFinite(r)) label((P[i].x + P[j].x) / 2 + 3, (P[i].y + P[j].y) / 2, r.toFixed(3), d.color); }); ctx.restore(); }
   }
-  // the bars between two times, for tools that read prices (regression, VWAP, volume profile, outcome of a position)
+  // bars between two times
   function range(t0, t1) { const B = getBars(); let i = barIdx(Math.min(t0, t1)), j = barIdx(Math.max(t0, t1)); return i == null ? { B, i: 0, j: -1 } : { B, i, j }; }
 
   function drawOne(d) {
@@ -249,7 +248,7 @@ window.Drawings = (() => {
         ctx.lineWidth = 1; ctx.strokeStyle = alpha(col, 0.6); ctx.setLineDash([4, 3]); [[hi2 + 1, 'VAH'], [lo2, 'VAL']].forEach(([k, s]) => { const y = yOf(lo + step * k); if (y != null) { seg({ x: x1, y }, { x: x2, y }); label(x2 + 2, y, s, col, 'middle'); } }); ctx.setLineDash([]);
         const yt = yOf(hi), yb = yOf(lo); ctx.strokeStyle = alpha(col, 0.4); ctx.strokeRect(x1, yt, x2 - x1, yb - yt); g.rects.push({ x: x1, y: yt, w: x2 - x1, h: yb - yt }); break;
       }
-      case 'barspattern': {   // copies the bars between the two points and shows them again, starting at the second point's time is up to you: drag the copy
+      case 'barspattern': {   // bars pattern copy
         const { B, i, j } = range(d.pts[0].t, d.pts[1].t); if (j <= i) break; const base = B[i].close, sh = d.pts[1].p - base, off = (tToL(d.pts[1].t) - i) + 1;
         ctx.lineWidth = 1; for (let k = i; k <= j; k++) { const q = B[k], x = xOfL(k + off), yh = yOf(q.high + sh), yl = yOf(q.low + sh), yo = yOf(q.open + sh), yc = yOf(q.close + sh); if ([yh, yl, yo, yc].some(v => v == null)) continue;
           ctx.strokeStyle = alpha(col, 0.8); ctx.beginPath(); ctx.moveTo(x, yh); ctx.lineTo(x, yl); ctx.moveTo(x - 2, yo); ctx.lineTo(x, yo); ctx.moveTo(x, yc); ctx.lineTo(x + 2, yc); ctx.stroke(); }
@@ -290,7 +289,7 @@ window.Drawings = (() => {
       hs.forEach(p => { if (!p) return; ctx.setLineDash([]); ctx.fillStyle = '#000'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.fillRect(p.x - 4, p.y - 4, 8, 8); ctx.strokeRect(p.x - 4, p.y - 4, 8, 8); });
     }
   }
-  // Long / Short position: pts[0] = entry, pts[1] = target (its time is the right edge), pts[2] = stop. Annotation only.
+  // long / short position
   function drawPosition(d, P) {
     const [e, t, s] = P, long = d.type === 'long', en = d.pts[0].p, tp = d.pts[1].p, sp = d.pts[2].p, x1 = e.x, x2 = Math.max(t.x, e.x + 10), w = x2 - x1;
     ctx.fillStyle = 'rgba(0,210,106,0.18)'; ctx.fillRect(x1, Math.min(e.y, t.y), w, Math.abs(t.y - e.y));
@@ -303,7 +302,7 @@ window.Drawings = (() => {
     tag((x1 + x2) / 2, t.y + (t.y < e.y ? -10 : 10), tTxt, 'rgba(0,150,80,.95)', '#fff', 'center');
     tag((x1 + x2) / 2, s.y + (s.y > e.y ? 10 : -10), sTxt, 'rgba(200,40,40,.95)', '#fff', 'center');
     tag((x1 + x2) / 2, e.y, `${long ? 'LONG' : 'SHORT'} ${fmt(en)} · Qty ${qty} · R:R ${rr.toFixed(2)}`, 'rgba(20,20,20,.9)', '#ddd', 'center');
-    // what happened after the entry bar (first touch of target or stop), shown like TradingView's closed P&L
+    // position outcome
     const { B, i, j } = range(d.pts[0].t, d.pts[1].t); let out = null;
     for (let k = i + 1; k <= j && k < B.length; k++) { const q = B[k], hitT = long ? q.high >= tp : q.low <= tp, hitS = long ? q.low <= sp : q.high >= sp; if (hitS) { out = { k, p: sp, ok: false }; break; } if (hitT) { out = { k, p: tp, ok: true }; break; } }
     const lastK = Math.min(j, B.length - 1);
@@ -350,7 +349,7 @@ window.Drawings = (() => {
   function newDrawing(pt) {
     const type = tool.startsWith('icon:') ? 'icon' : tool, d = { id: uid(), type, pts: [pt], color: style.color, width: style.width };
     if (type === 'icon') d.text = tool.slice(5);
-    if (type === 'long' || type === 'short') {   // default size: stop 1.5 x average bar range away, target at 2R, 20 bars wide
+    if (type === 'long' || type === 'short') {   // default position size
       const B = getBars(), last = B.slice(-14), rng = last.reduce((s, q) => s + q.high - q.low, 0) / (last.length || 1) || pt.p * 0.01, r = rng * 1.5, dir = type === 'long' ? 1 : -1;
       const l = tToL(pt.t), t2 = lToT(l + 20); d.pts = [pt, { t: t2, p: pt.p + dir * 2 * r }, { t: t2, p: pt.p - dir * r }]; d.acct = 10000; d.risk = 1;
     }
@@ -372,7 +371,7 @@ window.Drawings = (() => {
     inp.onblur = () => commit(true);
   }
   function local(e) { const r = box.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
-  function constrain(d, handle) {   // keep linked points together while a handle is dragged
+  function constrain(d, handle) {   // move linked points
     if ((d.type === 'long' || d.type === 'short') && (handle === 1 || handle === 2)) { const t = d.pts[handle].t; d.pts[1].t = d.pts[2].t = Math.max(t, d.pts[0].t); }
     if ((d.type === 'long' || d.type === 'short') && handle === 0) { d.pts[1].t = d.pts[2].t = Math.max(d.pts[1].t, d.pts[0].t); }
     if (d.type === 'avwap') { const B = getBars(), i = barIdx(d.pts[0].t); if (B[i]) d.pts[0].t = B[i].time; }
@@ -425,11 +424,11 @@ window.Drawings = (() => {
     if (drag) { const m = drag.moved; drag = null; if (m) changed(); else undoStack.pop(); return; }
     if (!pending) return;
     if (pending.brush) { if (pending.d.pts.length > 1) finish(); else pending = null; return; }
-    if (pending.down && !pending.open) { const { x, y } = local(e); if (Math.hypot(x - pending.down.x, y - pending.down.y) > 4) {   // drag-to-draw
+    if (pending.down && !pending.open) { const { x, y } = local(e); if (Math.hypot(x - pending.down.x, y - pending.down.y) > 4) {   // drag to draw
         if (pending.idx + 1 < npts(pending.d.type)) { pending.d.pts.push({ ...pending.d.pts[pending.idx] }); pending.idx++; pending.down = null; } else finish(); }
       else pending.down = null; }
   }
-  function finishOpen() {   // path / polyline: drop the rubber-band point and any double-click duplicate
+  function finishOpen() {   // finish path
     const p = pending.d.pts; p.pop(); while (p.length > 1) { const a = toXY(p[p.length - 1]), b = toXY(p[p.length - 2]); if (a && b && Math.hypot(a.x - b.x, a.y - b.y) < 4) p.pop(); else break; }
     if (p.length >= 2) finish(); else pending = null;
   }
@@ -452,7 +451,7 @@ window.Drawings = (() => {
     load(arr) { list = Array.isArray(arr) ? clone(arr) : []; sel = null; pending = null; drag = null; undoStack = []; onSelect(null); },
     clear() { if (!list.length) return; snapshot(); list = []; select(null); changed(); },
     style(s) { Object.assign(style, s); if (sel) edit(d => Object.assign(d, s)); },
-    set(props) { edit(d => Object.assign(d, props)); },   // e.g. {lock: true}, {acct: 25000}
+    set(props) { edit(d => Object.assign(d, props)); },   // options
     duplicate() { if (!sel) return; snapshot(); const d = clone(sel); d.id = uid(); d.lock = false; const m = lmap(); d.pts = d.pts.map(p => ({ t: lToT(tToL(p.t) + 5) || p.t, p: p.p })); list.push(d); select(d); changed(); },
     order(front) { edit(d => { list = list.filter(x => x !== d); if (front) list.push(d); else list.unshift(d); }); },
     selected: () => sel, editText: () => sel && T[sel.type] && T[sel.type].txt && editText(sel),

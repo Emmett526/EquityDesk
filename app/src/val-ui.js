@@ -1,17 +1,10 @@
 'use strict';
-// VAL (tab 6): valuation, forecasts and fundamentals for one stock, in sub-tabs:
-//   Summary · DCF · Relative valuation · Discount rate · Forecasts · Fundamentals (profitability, solvency, economic moat)
-// - DCF: ten years of free cash flow (five years at a starting growth rate, five years fading to a terminal rate),
-//   discounted at a cost of capital built from the stock's beta, plus a terminal value. Bear / base / bull scenarios,
-//   every assumption can be changed, and a sensitivity grid shows how the value moves with discount rate and terminal growth.
-// - Multiples (P/E, EV/EBITDA, FCF yield...) and the Wall Street view (consensus rating, price targets, estimates).
-// Data: the same Yahoo Finance answer as FIN (api.fin, cached 30 minutes in the main process), so opening VAL costs no
-// extra calls. Text is written in English and Traditional Chinese here (the container is skipped by i18n.js).
-// A model estimate for research, not financial advice and not a price forecast.
+// VAL screen (valuation)
+// data from api.fin (same as FIN)
 const ValScreen = (() => {
   const P = { sym: '', sc: 'base', tab: 'sum' };
   try { Object.assign(P, JSON.parse(localStorage.getItem('valState') || '{}')); } catch (e) {}
-  let D = null, root = null, busy = false, fxRate = 1, ov = {};   // ov: the user's own assumptions for this symbol
+  let D = null, root = null, busy = false, fxRate = 1, ov = {};   // ov: user's own inputs
   const $v = s => root.querySelector(s);
   const save = () => { try { localStorage.setItem('valState', JSON.stringify({ sym: P.sym, sc: P.sc, tab: P.tab })); } catch (e) {} };
   const zh = () => !!(window.I18N && I18N.lang === 'zh-HK');
@@ -24,24 +17,22 @@ const ValScreen = (() => {
   const big = v => { if (!fin(v)) return '—'; const a = Math.abs(v), s = v < 0 ? '−' : ''; return s + (a >= 1e12 ? (a / 1e12).toFixed(2) + 'T' : a >= 1e9 ? (a / 1e9).toFixed(2) + 'B' : a >= 1e6 ? (a / 1e6).toFixed(2) + 'M' : a >= 1e3 ? (a / 1e3).toFixed(1) + 'K' : a.toFixed(0)); };
   const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
   const last = arr => { if (!Array.isArray(arr)) return null; for (let i = arr.length - 1; i >= 0; i--) if (fin(arr[i])) return +arr[i]; return null; };
-  const RF = 0.0425, ERP = 0.05, KD = 0.055, TAX = 0.21;   // risk-free rate, equity risk premium, pre-tax cost of debt, tax rate
+  const RF = 0.0425, ERP = 0.05, KD = 0.055, TAX = 0.21;   // rf, ERP, cost of debt, tax
 
-  // ---- the model's starting point, from the data ----
+  // ---- defaults ----
   function defaults() {
     const fd = D.fd || {}, ks = D.ks || {}, an = (D.annual && D.annual.rows) || {}, notes = [];
     let fcf = fin(fd.fcf) ? fd.fcf : last(an.FreeCashFlow), fcfSrc = fin(fd.fcf) ? 'ttm' : 'annual';
     if (!(fcf > 0)) { const ni = last(an.NetIncome); if (ni > 0) { fcf = ni * 0.8; fcfSrc = 'ni'; } }
-    // growth for years 1-5: analysts' revenue growth for next year, else this year, else the last reported growth
+    // year-1 growth
     const tr = k => (D.trend || []).find(t => t.period === k) || {};
     const gNext = fin(tr('+1y').rev) && tr('+1y').revYago ? tr('+1y').rev / tr('+1y').revYago - 1 : null;
     const gNow = fin(tr('0y').rev) && tr('0y').revYago ? tr('0y').rev / tr('0y').revYago - 1 : null;
     let g = [gNext, gNow, fd.revGrowth].find(fin), gSrc = g === gNext ? 'est1y' : g === gNow ? 'est0y' : g != null ? 'hist' : 'none';
     if (g == null) g = 0.06; g = clamp(g, -0.3, 0.5);
-    // growth by year 5: analysts' long-term (5-year) growth if Yahoo has it, else the year-1 rate capped at 8%.
-    // A one-year estimate is never carried for five years (it overstates cyclical stocks at a peak).
+    // year-5 growth
     const ltg = (tr('+5y') || {}).growth, gL = fin(ltg) ? clamp(ltg, 0, 0.15) : clamp(g, 0, 0.08), gLSrc = fin(ltg) ? 'ltg' : 'cap';
-    // free cash flow margin: today's, fading over five years to halfway between today's and its usual (median) level,
-    // so record (or very poor) margins are not assumed to last forever
+    // FCF margin fade
     const Y = years(), rev = fin(fd.rev) && fd.rev > 0 ? fd.rev : (Y.slice(-1)[0] || {}).rev;
     const hm = Y.filter(y => fin(y.fcf) && y.rev > 0).map(y => y.fcf / y.rev), mHist = hm.length >= 3 ? med(hm) : null;
     const m0 = fin(fcf) && rev > 0 ? fcf / rev : null, m = m0 == null ? null : mHist == null ? m0 : Math.max((m0 + mHist) / 2, Math.min(m0, 0.02));
@@ -51,8 +42,8 @@ const ValScreen = (() => {
     if (m0 != null && mHist != null && Math.abs(m0 - mHist) > 0.05) notes.push(L(`Free cash flow margin is ${pc(m0)} now against a usual ${pc(mHist)}, so the model fades it to ${pc(m)} over five years.`, `目前自由現金流利潤率為 ${pc(m0)}，一般水平為 ${pc(mHist)}，所以模型在五年內把它調整至 ${pc(m)}。`));
     return { fcf, fcfSrc, rev, m0, m, mHist, g, gSrc, gL, gLSrc, gT: 0.025, rf: RF, erp: ERP, beta, kd: KD, tax: TAX, debt, cash, shares, notes };
   }
-  // a scenario's assumptions: base = defaults (or the user's own numbers), bear and bull move growth and the discount rate
-  // cost of capital (CAPM for equity, after-tax cost of debt, weights at market value of equity and book value of debt)
+  // scenarios
+  // WACC
   function wacc(b) {
     const mcapF = D.mcap > 0 ? D.mcap / (fxRate || 1) : 0, wd = mcapF > 0 ? b.debt / (b.debt + mcapF) : 0, ke = b.rf + b.beta * b.erp, kdA = b.kd * (1 - b.tax);
     return { ke, kdA, wd, we: 1 - wd, raw: ke * (1 - wd) + kdA * wd, r: clamp(ke * (1 - wd) + kdA * wd, 0.05, 0.2) };
@@ -63,10 +54,10 @@ const ValScreen = (() => {
     if (sc === 'bull') return Object.assign({}, b, { g: Math.max(b.g * 1.4, b.g + 0.04), gL: b.gL + 0.02, m: b.m * 1.15, r: Math.max(0.05, b.r - 0.01), gT: b.gT + 0.005 });
     return b;
   }
-  // ten-year DCF -> value per share in the price currency
+  // dcf
   function dcf(a) {
     if (!(a.rev > 0) || !fin(a.m0) || !(a.m > 0) || !(a.shares > 0) || !(a.r > a.gT)) return null;
-    // revenue: year-1 growth fades to the year-5 rate, then to terminal growth by year 10; FCF = revenue x margin
+    // revenue x margin
     const rows = []; let rv = a.rev, pvSum = 0;
     for (let y = 1; y <= 10; y++) {
       const g = y <= 5 ? a.g + (a.gL - a.g) * (y - 1) / 4 : a.gL + (a.gT - a.gL) * (y - 5) / 5; rv *= 1 + g;
@@ -81,17 +72,17 @@ const ValScreen = (() => {
 
   // ---- drawing ----
   function card(title, body, cls = '') { return `<div class="finCard valCard ${cls}"><div class="finH"><b>${title}</b></div>${body}</div>`; }
-  function rangeBar(lo, hi, marks) {   // horizontal scale from lo to hi with labelled marks [{v, label, cls}]
+  function rangeBar(lo, hi, marks) {   // range bar
     if (!fin(lo) || !fin(hi) || hi <= lo) return '';
     const pad = (hi - lo) * 0.08, a = lo - pad, b = hi + pad, x = v => clamp((v - a) / (b - a) * 100, 0, 100);
-    // labels go below, above, then further below the bar, so close values never overlap
+    // label rows
     const tops = [40, -4, 68], last = [-99, -99, -99], ms = marks.filter(m => fin(m.v)).map(m => Object.assign({ x: x(m.v) }, m)).sort((p, q) => p.x - q.x);
     for (const m of ms) { let r = last.findIndex(l => m.x - l >= 11); if (r < 0) r = last.indexOf(Math.min(...last)); m.row = r; last[r] = m.x; }
     const deep = ms.some(m => m.row === 2);
     return `<div class="valBar"${deep ? ' style="margin-bottom:40px"' : ''}><div class="valBarTrack" style="left:${x(lo)}%;right:${100 - x(hi)}%"></div>` +
       ms.map(m => `<div class="valMark ${m.cls || ''}" style="left:${m.x}%"><i></i><span style="top:${tops[m.row]}px">${esc(m.label)}<br><b>${n2(m.v)}</b></span></div>`).join('') + '</div>';
   }
-  function chart(res) {   // projected free cash flow (light) and its present value (solid)
+  function chart(res) {   // FCF chart
     const W = 620, H = 170, pad = 30, rows = res.rows, mx = Math.max(...rows.map(r => r.f)) || 1, bw = (W - pad * 2) / rows.length;
     const y = v => H - 22 - (v / mx) * (H - 40);
     let g = rows.map((r, i) => { const x = pad + i * bw + 4;
@@ -116,7 +107,7 @@ const ValScreen = (() => {
   const med = a => { const x = a.filter(fin).sort((p, q) => p - q); if (!x.length) return null; const m = x.length >> 1; return x.length % 2 ? x[m] : (x[m - 1] + x[m]) / 2; };
   const sd = a => { const x = a.filter(fin), m = avg(x); return x.length > 1 ? Math.sqrt(x.reduce((s, v) => s + (v - m) ** 2, 0) / (x.length - 1)) : null; };
 
-  // ---- per-year history from the annual statements (financial currency) ----
+  // ---- yearly history ----
   function years() {
     const an = D.annual || { dates: [], rows: {} }, R = k => (an.rows || {})[k] || [];
     return (an.dates || []).map((d, i) => { const v = k => fin(R(k)[i]) ? +R(k)[i] : null;
@@ -128,10 +119,10 @@ const ValScreen = (() => {
         roic: ebit != null && ic > 0 ? ebit * (1 - tr) / ic : null, roe: ni != null && eq > 0 ? ni / eq : null };
     });
   }
-  // price at (or just before) a date, from the month-end closes
+  // price at date
   function pxAt(d) { const t = Date.parse(d) / 1000, px = D.px || []; let best = null; for (const [ts, c] of px) { if (ts <= t + 20 * 86400) best = c; else break; } return best; }
 
-  // ---- relative valuation: the stock against its own history (yearly multiples at each fiscal year end) ----
+  // ---- relative valuation ----
   function relative() {
     const Y = years(), fx = fxRate, price = D.price, out = { rows: [], methods: [] };
     Y.forEach(y => { const p = pxAt(y.d); if (!fin(p)) return;
@@ -140,8 +131,7 @@ const ValScreen = (() => {
     const eps = fin(D.ks && D.ks.teps) ? D.ks.teps : lastY.eps != null ? lastY.eps * fx : null;
     const revPs = fin(D.fd && D.fd.rev) && sh > 0 ? D.fd.rev / sh * fx : lastY.rev > 0 && lastY.sh > 0 ? lastY.rev / lastY.sh * fx : null;
     const fcfPs = fin(D.fd && D.fd.fcf) && sh > 0 ? D.fd.fcf / sh * fx : lastY.fcf > 0 && lastY.sh > 0 ? lastY.fcf / lastY.sh * fx : null;
-    // at a profit peak (margins far above their usual level) a usual multiple times peak earnings overstates value,
-    // so earnings and cash flow are scaled back halfway to the usual margin for these methods
+    // peak margin adjust
     const nmH = med(Y.filter(y => fin(y.ni) && y.rev > 0).map(y => y.ni / y.rev)), nmNow = D.fd && D.fd.nm;
     const kE = Y.length >= 3 && nmH > 0 && nmNow > nmH * 1.5 ? (nmH + nmNow) / 2 / nmNow : 1;
     const fm = Y.filter(y => fin(y.fcf) && y.rev > 0).map(y => y.fcf / y.rev), fmH = med(fm), fmNow = fcfPs > 0 && revPs > 0 ? fcfPs / revPs : null;
@@ -156,7 +146,7 @@ const ValScreen = (() => {
     out.value = med(out.methods.map(m => m.implied)); return out;
   }
 
-  // ---- moat indicators: a transparent score from long-run returns and margins (an estimate, not a rating agency view) ----
+  // ---- moat ----
   function moat() {
     const Y = years().filter(y => y.rev > 0), pts = [], add = (ok, en, z, why) => pts.push({ ok, t: L(en, z), why });
     const roic = Y.map(y => y.roic), gm = Y.map(y => y.gp != null ? y.gp / y.rev : null), fm = Y.map(y => y.fcf != null ? y.fcf / y.rev : null), om = Y.map(y => y.op != null ? y.op / y.rev : null);
@@ -184,6 +174,8 @@ const ValScreen = (() => {
       `<div><span class="mut">${L('Relative value', '相對估值')}</span><b class="valBig">${n2(rel.value)}</b><span class="small ${relUp >= 0 ? 'up' : 'dn'}">${sp(relUp)}</span></div>` +
       `<div><span class="mut">${L('Price', '股價')}</span><b class="valBig">${n2(price)}</b></div>` +
       `<div><span class="mut">${L('Analyst target (mean)', '分析師目標價（平均）')}</span><b class="valBig">${n2(fd.tMean)}</b><span class="small ${tUp >= 0 ? 'up' : 'dn'}">${sp(tUp)} · ${recLabel(fd.recMean)}</span></div>` +
+      (() => { const t = Tech.peek(D.symbol); if (!t) return ''; const k = Tech.level(t.sAll), nm = { sb: L('Strong buy', '強烈買入'), b: L('Buy', '買入'), n: L('Neutral', '中性'), s: L('Sell', '賣出'), ss: L('Strong sell', '強烈賣出') }[k];
+        return `<div><span class="mut">${L('Technicals', '技術分析')}</span><b class="valBig ${k === 'sb' || k === 'b' ? 'up' : k === 's' || k === 'ss' ? 'dn' : ''}">${nm}</b><span class="mut small">${L('daily prices', '每日股價')}</span></div>`; })() +
       `<div><span class="mut">${L('Economic moat', '經濟護城河')}</span><b class="valBig ${mo.cls}">${mo.lvl}</b><span class="mut small">${mo.score} / 6</span></div></div>` +
       rangeBar(Math.min(...[res.bear && res.bear.ps, rel.value, fd.tLow, price].filter(fin)), Math.max(...[res.bull && res.bull.ps, rel.value, fd.tHigh, price].filter(fin)),
         [{ v: res.bear && res.bear.ps, label: L('DCF bear', 'DCF 悲觀'), cls: 'dnM' }, { v: res.base && res.base.ps, label: L('DCF base', 'DCF 基本'), cls: 'baseM' }, { v: res.bull && res.bull.ps, label: L('DCF bull', 'DCF 樂觀'), cls: 'upM' }, { v: rel.value, label: L('Relative', '相對'), cls: 'relM' }, { v: price, label: L('Price', '股價'), cls: 'pxM' }]) +
@@ -253,10 +245,10 @@ const ValScreen = (() => {
       [[L('Low', '最低'), fd.tLow], [L('Mean', '平均'), fd.tMean], [L('Median', '中位數'), fd.tMed], [L('High', '最高'), fd.tHigh]].map(([l, v]) => `<div><span class="mut">${l}</span><b class="valBig">${n2(v)}</b><span class="small ${v >= price ? 'up' : 'dn'}">${fin(v) && fin(price) ? sp(v / price - 1) : ''}</span></div>`).join('') + `</div>` +
       rangeBar(Math.min(fd.tLow, price), Math.max(fd.tHigh, price), [{ v: fd.tLow, label: L('Low', '最低'), cls: 'dnM' }, { v: fd.tMean, label: L('Mean', '平均'), cls: 'baseM' }, { v: fd.tHigh, label: L('High', '最高'), cls: 'upM' }, { v: price, label: L('Price', '股價'), cls: 'pxM' }]) + dist +
       `<div class="mut small">${L('12-month price targets from analysts covering the stock, in', '覆蓋該股分析師的 12 個月目標價，貨幣為')} ${esc(ccy)}.</div>` : `<div class="mut">${L('No analyst price targets in the data for this symbol.', '數據中沒有這隻股票的分析師目標價。')}</div>`, 'wide') +
-      card(L('Financial estimates', '財務預測'), est, 'wide') + (hist ? card(L('Earnings: estimate vs actual', '盈利：預測對比實際'), hist) : '') + (trend ? card(L('Rating changes', '評級變化'), trend) : '');
+      card(L('Financial estimates', '財務預測'), est, 'wide') + (hist ? card(L('Earnings: estimate vs actual', '盈利：預測對比實際'), hist) : '') + (trend ? card(L('Rating changes', '評級變化'), trend) : '') + Tech.card(D.symbol);
   }
   function pgFund({ fd: fd0, mo }) {
-    const Y = years(), lastY = Y[Y.length - 1] || {}, r = (k, f) => fin(fd0[k]) ? fd0[k] : f;   // trailing figures from Yahoo, else the last fiscal year
+    const Y = years(), lastY = Y[Y.length - 1] || {}, r = (k, f) => fin(fd0[k]) ? fd0[k] : f;   // TTM or last year
     const fd = Object.assign({}, fd0, { gm: r('gm', lastY.rev > 0 && lastY.gp != null ? lastY.gp / lastY.rev : null), om: r('om', lastY.rev > 0 && lastY.op != null ? lastY.op / lastY.rev : null), nm: r('nm', lastY.rev > 0 && lastY.ni != null ? lastY.ni / lastY.rev : null),
       roe: r('roe', lastY.roe), roa: r('roa', lastY.ta > 0 && lastY.ni != null ? lastY.ni / lastY.ta : null), cr: r('cr', lastY.cl > 0 && lastY.ca != null ? lastY.ca / lastY.cl : null), cash: r('cash', lastY.cash), debt: r('debt', lastY.debt),
       rev: r('rev', lastY.rev), fcf: r('fcf', lastY.fcf), ebitda: r('ebitda', lastY.ebitda) });
@@ -303,6 +295,7 @@ const ValScreen = (() => {
     fxRate = 1; const fc = r.finCcy, pc_ = r.currency;
     if (fc && pc_ && fc !== pc_) { try { const from = fc, to = pc_ === 'GBp' ? 'GBP' : pc_; const m = await api.fx([[from, to]]); const v = m && m[from + to]; if (fin(v)) fxRate = v * (pc_ === 'GBp' ? 100 : 1); } catch (e) {} }
     busy = false; D = r; draw();
+    Tech.get(sym).then(() => { if (P.sym === sym && D) draw(); });
   }
   function resolveTicker(t) { try { const w = String(t).trim().toUpperCase().split(/\s+/); return resolve(withMarket(w)[0], null); } catch (e) { return String(t).trim().toUpperCase(); } }
   function init() {

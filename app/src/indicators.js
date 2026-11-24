@@ -1,6 +1,6 @@
 'use strict';
-// Custom indicators written in Python or C. Runs in the main process as a child program with a timeout.
-// Imported code runs with the user's own permissions, so only import files you trust.
+// custom indicators (Python / C, run with a timeout)
+// runs as the user: only import trusted files
 const path = require('path'), fs = require('fs'), crypto = require('crypto'), { execFile, spawn } = require('child_process');
 
 const TIMEOUT_MS = 20000, MAX_OUT = 32 * 1024 * 1024;
@@ -11,7 +11,7 @@ const readList = () => { try { return JSON.parse(fs.readFileSync(listFile(), 'ut
 const writeList = l => { fs.mkdirSync(dir(), { recursive: true }); fs.writeFileSync(listFile(), JSON.stringify(l, null, 2)); };
 function init(userData) { root = userData; fs.mkdirSync(dir('build'), { recursive: true }); }
 
-// Header comments, e.g. "# @name RSI 14", "// @pane separate", "// @outputs rsi", "// @param length 14"
+// header tags
 function parseHeader(src, file) {
   const m = { name: path.basename(file).replace(/\.[^.]+$/, ''), pane: 'overlay', outputs: [], params: [], levels: [], styles: {}, palettes: {} };
   for (const line of src.split(/\r?\n/).slice(0, 60)) {
@@ -21,8 +21,8 @@ function parseHeader(src, file) {
     else if (k === 'pane') m.pane = /sep|pane|below|osc/i.test(v) ? 'separate' : 'overlay';
     else if (k === 'outputs') m.outputs = v.split(/[\s,]+/).filter(Boolean).slice(0, 8);
     else if (k === 'param') { const [n, d] = v.split(/\s+/); if (n) m.params.push({ name: n.slice(0, 30), value: Number(d) || 0 }); }
-    else if (k === 'plot') { const [n, t] = v.split(/\s+/); if (n && /^(line|hist|step|dots)$/.test(t)) m.styles[n.slice(0, 30)] = t; }   // "@plot chop hist"
-    else if (k === 'palette') { const [n, ...c] = v.split(/[\s,]+/); const ok = c.filter(x => /^#[0-9a-f]{3,8}$/i.test(x)).slice(0, 32); if (n && ok.length) m.palettes[n.slice(0, 30)] = ok; }   // "@palette chop #f00 #0f0": <name>_color output picks the colour
+    else if (k === 'plot') { const [n, t] = v.split(/\s+/); if (n && /^(line|hist|step|dots)$/.test(t)) m.styles[n.slice(0, 30)] = t; }   // @plot
+    else if (k === 'palette') { const [n, ...c] = v.split(/[\s,]+/); const ok = c.filter(x => /^#[0-9a-f]{3,8}$/i.test(x)).slice(0, 32); if (n && ok.length) m.palettes[n.slice(0, 30)] = ok; }   // @palette
     else if (k === 'level') v.split(/[\s,]+/).map(Number).filter(Number.isFinite).forEach(n => m.levels.push(n));
   }
   if (!m.outputs.length) m.outputs = ['value'];
@@ -41,7 +41,7 @@ function importFile(file) {
   const meta = { id, lang, file: store, origin: file, enabled: true, ...parseHeader(src, file) };
   const l = readList(); l.push(meta); writeList(l); return meta;
 }
-function reload(id) {           // pick up edits to the original file
+function reload(id) {   // reload edited file
   const l = readList(), m = l.find(x => x.id === id); if (!m) throw new Error('Unknown indicator');
   const src = fs.readFileSync(m.origin, 'utf8'); fs.writeFileSync(dir(m.file), src);
   const params = m.params; Object.assign(m, parseHeader(src, m.origin));
@@ -69,7 +69,7 @@ function run(cmd, args, input, opts = {}) {
     if (input != null) p.stdin.end(input); else p.stdin.end();
   });
 }
-// Try each candidate command until one starts; ENOENT means "not installed", anything else is a real error.
+// try each command
 async function firstWorking(cands, args, input, opts) {
   let last;
   for (const c of cands) {
@@ -142,7 +142,7 @@ async function compileC(m, s) {
   return exe;
 }
 
-async function compute(id, bars, s, over) {   // over: optional {paramName: value} for this chart instance
+async function compute(id, bars, s, over) {   // per-chart params
   const m = readList().find(x => x.id === id); if (!m) throw new Error('Unknown indicator');
   if (!Array.isArray(bars) || !bars.length) throw new Error('No bars loaded');
   bars = bars.slice(-20000);
@@ -174,7 +174,7 @@ async function compute(id, bars, s, over) {   // over: optional {paramName: valu
   return { id, series: res };
 }
 
-// Custom UI themes: run a .py with Python, or compile a .c (no harness) and run it; returns stdout. Same trust level as indicators.
+// run a theme file
 async function runTheme(file, ext, s) {
   if (ext === '.py') { try { return (await firstWorking(s.pythonPath ? [s.pythonPath] : PY_CANDS, [file], null, { timeout: 15000 })).out; }
     catch (e) { if (e.notFound) throw new Error('Python 3 was not found. Install it from python.org or set its path in SET.'); throw e; } }

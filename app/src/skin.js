@@ -1,14 +1,12 @@
 'use strict';
-// Custom UI (IND > Custom UI): cosmetic themes from Python, C or HTML+CSS. Whatever a file produces is reduced to
-// colours, fonts, corner radius, a few decorative properties and the order of the nine tabs. Nothing else reaches the page:
-// no markup, no scripts, no layout or visibility changes, no URLs. The result is rebuilt from the parsed parts, never passed through as text.
+// custom UI themes: looks only (colours, fonts, radius, tab order)
 const fs = require('fs'), path = require('path');
 
-const TABS = ['desk', 'watch', 'gp', 'fin', 'news', 'lab', 'ind', 'set', 'help'];
-const TAB_NAMES = { DESK: 'desk', MON: 'watch', WATCH: 'watch', GP: 'gp', FIN: 'fin', NEWS: 'news', IND: 'ind', CUSTOM: 'ind', CUSTOMIZATION: 'ind', NEW: 'lab', LAB: 'lab', VAL: 'lab', VALUATION: 'lab', SET: 'set', HELP: 'help' };
-// colour tokens a theme may set (CSS custom properties in app.css)
+const TABS = ['desk', 'watch', 'gp', 'fin', 'lab', 'quant', 'news', 'set', 'help'];
+const TAB_NAMES = { DESK: 'desk', MON: 'watch', WATCH: 'watch', GP: 'gp', FIN: 'fin', NEWS: 'news', QUANTS: 'quant', QUANT: 'quant', NEW: 'lab', LAB: 'lab', VAL: 'lab', VALUATION: 'lab', SET: 'set', HELP: 'help' };
+// colour tokens
 const VARS = ['bg', 'panel', 'panel2', 'panel3', 'line', 'line0', 'line2', 'line3', 'ink', 'ink2', 'hi', 'mut', 'amb', 'amb2', 'yel', 'up', 'dn', 'blu', 'hdr', 'hdrInk', 'tint', 'tint2'];
-// properties allowed in custom CSS rules: they change how things look, never what is shown or where
+// allowed CSS properties
 const PROPS = new Set(['color', 'background', 'background-color', 'border-color', 'border-top-color', 'border-right-color', 'border-bottom-color', 'border-left-color',
   'outline-color', 'caret-color', 'accent-color', 'text-decoration-color', 'scrollbar-color', 'font-family', 'font-weight', 'font-style', 'letter-spacing',
   'text-transform', 'text-shadow', 'box-shadow', 'border-radius', 'text-decoration', 'background-image']);
@@ -25,7 +23,7 @@ function tabsFrom(list, dropped) {
     if (id && !out.includes(id)) out.push(id); else if (!id) dropped.push('tab "' + x.slice(0, 20) + '" (tabs can only be reordered)'); }
   return out.length ? [...out, ...TABS.filter(t => !out.includes(t))] : null;
 }
-function cleanCss(css, dropped, varsOut) {   // -> safe CSS text rebuilt from whitelisted declarations
+function cleanCss(css, dropped, varsOut) {   // safe CSS
   css = String(css || '').slice(0, 100000).replace(/\/\*[\s\S]*?\*\//g, '');
   if (/@[a-z-]+/i.test(css)) { dropped.push('@-rules (@import, @font-face, @media…)'); css = css.replace(/@[a-z-]+[^{;]*(;|\{([^{}]*\{[^}]*\})*[^}]*\})/gi, ''); }
   const out = [];
@@ -45,7 +43,7 @@ function cleanCss(css, dropped, varsOut) {   // -> safe CSS text rebuilt from wh
       if (/shadow|letter-spacing|radius/.test(prop) && [...val.replace(/#[0-9a-f]{3,8}\b/gi, '').replace(/(rgba?|hsla?)\([^)]*\)/gi, '').matchAll(/(-?[\d.]+)(px|em|rem|vw|vh|%)?/g)].some(([, n, u]) => Math.abs(+n) > (u === 'em' || u === 'rem' ? 2 : u === '%' ? 50 : u === 'vw' || u === 'vh' ? 0 : 30))) { dropped.push(prop + ' (too large; it could cover the screen)'); continue; }
       if (prop === 'color' && /^transparent$/i.test(val)) { dropped.push('color: transparent (would hide text)'); continue; }
       if (custom && !color(val)) { dropped.push(prop + ' (must be a colour)'); continue; }
-      if (custom && varsOut && /^(:root|html|body)$/.test(sel)) { varsOut[prop.slice(2)] = val; continue; }   // page-wide colours become theme colours (work in dark and light mode)
+      if (custom && varsOut && /^(:root|html|body)$/.test(sel)) { varsOut[prop.slice(2)] = val; continue; }   // page colours -> theme colours
       if (prop === 'font-family' && !FONT.test(val)) { dropped.push('font-family value'); continue; }
       decls.push(`${prop}:${val}${imp ? ' !important' : ''}`);
     }
@@ -53,7 +51,7 @@ function cleanCss(css, dropped, varsOut) {   // -> safe CSS text rebuilt from wh
   }
   return out.join('\n');
 }
-// any object (from Python / C JSON, a CSS file, or the colour pickers) -> the stored theme
+// theme object
 function sanitize(t, dropped = []) {
   t = t && typeof t === 'object' ? t : {};
   const vars = {}, src = Object.assign({}, t.colors || {}, t.vars || {});
@@ -67,7 +65,7 @@ function sanitize(t, dropped = []) {
   if (t.source) out.source = String(t.source).slice(0, 500);
   return out;
 }
-// read a theme file: .css / .html (style blocks only; markup is ignored), .py or .c (run once; it prints the theme as JSON)
+// read theme file
 async function fromFile(file, settings, runner) {
   const ext = path.extname(file).toLowerCase(), dropped = [];
   if (fs.statSync(file).size > 1e6) throw new Error('Theme files must be under 1 MB');

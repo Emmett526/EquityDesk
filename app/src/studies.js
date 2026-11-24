@@ -1,5 +1,5 @@
 'use strict';
-// Built-in indicator library (TradingView-style). Each study returns arrays aligned with the bars; null = no value yet.
+// built-in indicators
 window.Studies = (() => {
   // ---- array helpers ----
   const N = v => v == null || Number.isNaN(v) ? null : v;
@@ -20,11 +20,11 @@ window.Studies = (() => {
   const sum = (a, n) => win(a, n, w => w.reduce((x, y) => x + y, 0));
   const rsiA = (a, n) => { const ch = change(a), g = rma(ch.map(v => v == null ? null : Math.max(v, 0)), n), l = rma(ch.map(v => v == null ? null : Math.max(-v, 0)), n); return g.map((v, i) => v == null || l[i] == null ? null : l[i] === 0 ? 100 : 100 - 100 / (1 + v / l[i])); };
   const hmaA = (s, n) => { const h = Math.max(1, Math.round(n / 2)); return wma(sub(wma(s, h).map(v => v == null ? null : 2 * v), wma(s, n)), Math.max(1, Math.round(Math.sqrt(n)))); };
-  // least-squares line over the last n values, evaluated at the newest bar (like ta.linreg(src, n, 0))
+  // linear regression
   const linregA = (a, n) => win(a, n, w => { let sx = 0, sy = 0, sxy = 0, sxx = 0; w.forEach((y, x) => { sx += x; sy += y; sxy += x * y; sxx += x * x; }); const sl = (n * sxy - sx * sy) / ((n * sxx - sx * sx) || 1); return (sy - sl * sx) / n + sl * (n - 1); });
-  // confirmed pivots: [index, value] where value is the highest (or lowest) of `left` bars before and `right` bars after
+  // pivots
   function pivots(a, left, right, high) { const o = []; for (let i = left; i < a.length - right; i++) { const v = a[i]; if (v == null) continue; let ok = true; for (let j = i - left; j <= i + right && ok; j++) if (j !== i && a[j] != null && (high ? a[j] > v || (a[j] === v && j < i) : a[j] < v || (a[j] === v && j < i))) ok = false; if (ok) o.push([i, v]); } return o; }
-  // zigzag swings: alternate highs and lows that move at least dev % and are at least depth bars apart
+  // zigzag
   function zz(b, dev, depth) { const sw = [], gap = Math.max(1, Math.round(depth / 3)); let dir = 0, hi = null, lo = null;
     b.forEach((x, i) => {
       if (dir === 0) { if (!hi || x.high >= hi[1]) hi = [i, x.high]; if (!lo || x.low <= lo[1]) lo = [i, x.low];
@@ -33,24 +33,24 @@ window.Studies = (() => {
       if (dir === 1) { if (x.high >= last[1]) sw[k] = [i, x.high]; else if ((last[1] / x.low - 1) * 100 >= dev && i - last[0] >= gap) { sw.push([i, x.low]); dir = -1; } }
       else { if (x.low <= last[1]) sw[k] = [i, x.low]; else if ((x.high / last[1] - 1) * 100 >= dev && i - last[0] >= gap) { sw.push([i, x.high]); dir = 1; } } });
     return sw; }
-  // ---- calendar periods in the exchange's own time zone (set per run from the chart's symbol) ----
+  // ---- calendar periods ----
   let TZ = 'UTC', dayFmt = null; const dayCache = new Map();
   function setTz(z) { z = z || 'UTC'; if (z === TZ && dayFmt) return; try { dayFmt = new Intl.DateTimeFormat('en-CA', { timeZone: z, year: 'numeric', month: '2-digit', day: '2-digit' }); TZ = z; } catch (e) { dayFmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'UTC', year: 'numeric', month: '2-digit', day: '2-digit' }); TZ = 'UTC'; } dayCache.clear(); }
   function ymd(t) { const k = Math.floor(t / 900); let v = dayCache.get(k); if (!v) { const [y, m, d] = dayFmt.format(new Date(t * 1000)).split('-').map(Number); v = [y, m - 1, d]; if (dayCache.size > 20000) dayCache.clear(); dayCache.set(k, v); } return v; }
   function perKey(t, tf) { const [y, m, d] = ymd(t); return tf === 'D' ? y * 400 + m * 32 + d : tf === 'W' ? Math.floor((Date.UTC(y, m, d) / 864e5 + 3) / 7) : tf === 'M' ? y * 12 + m : tf === 'Q' ? y * 4 + Math.floor(m / 3) : y; }
   const stepOf = b => { if (b.length < 2) return 86400; const d = []; for (let i = Math.max(1, b.length - 50); i < b.length; i++) d.push(b[i].time - b[i - 1].time); d.sort((x, y) => x - y); return d[d.length >> 1] || 86400; };
   function groups(b, tf) { const g = []; let key = null; b.forEach((x, i) => { const k = perKey(x.time, tf); if (k !== key) { key = k; g.push({ s: i, e: i, o: x.open, h: x.high, l: x.low, c: x.close }); } else { const z = g[g.length - 1]; z.e = i; z.h = Math.max(z.h, x.high); z.l = Math.min(z.l, x.low); z.c = x.close; } }); return g; }
-  // previous completed period's high / low / close / open on every bar, plus the current period's open
+  // previous period levels
   function prevPer(b, tf) { const g = groups(b, tf), o = { h: [], l: [], c: [], o: [], co: [], first: g.map(x => x.s) };
     g.forEach((x, k) => { const pv = g[k - 1]; for (let i = x.s; i <= x.e; i++) { o.h.push(pv ? pv.h : null); o.l.push(pv ? pv.l : null); o.c.push(pv ? pv.c : null); o.o.push(pv ? pv.o : null); o.co.push(x.o); } }); return o; }
-  // gap the step lines where a new period starts (only when a period spans more than one bar)
+  // gap at new period
   function brk(o, first) { const f = new Set(first); Object.values(o).forEach(a => { if (Array.isArray(a)) for (const i of f) if (i > 0 && f.has(i) && !f.has(i + 1) && i + 1 < a.length) a[i] = null; }); return o; }
   const fmt = v => Math.abs(v) >= 1000 ? v.toFixed(1) : v.toFixed(2);
   const SRC = ['close', 'open', 'high', 'low', 'hl2', 'hlc3', 'ohlc4'], MAT = ['SMA', 'EMA', 'WMA', 'RMA'];
   const I = (k, l, d, o) => ({ k, l, d, ...(o || {}) });
 
   // ---- library ----
-  // pane: 'overlay' (on price) or 'new' (own pane). plots: k, name, color, type line|hist|dots|step
+  // pane: overlay | new; plots: k, name, color, type
   const L = [
     { id: 'sma', name: 'Moving Average Simple', short: 'SMA', cat: 'Moving averages', pane: 'overlay', inputs: [I('len', 'Length', 20), I('src', 'Source', 'close', { opts: SRC })], plots: [{ k: 'ma', c: '#ffd400' }], calc: (b, p) => ({ ma: sma(src(b, p.src), p.len) }) },
     { id: 'ema', name: 'Moving Average Exponential', short: 'EMA', cat: 'Moving averages', pane: 'overlay', inputs: [I('len', 'Length', 21), I('src', 'Source', 'close', { opts: SRC })], plots: [{ k: 'ma', c: '#ff5fd2' }], calc: (b, p) => ({ ma: ema(src(b, p.src), p.len) }) },
@@ -155,7 +155,7 @@ window.Studies = (() => {
       calc: (b, p) => { const mfv = b.map(x => x.high === x.low ? 0 : ((x.close - x.low) - (x.high - x.close)) / (x.high - x.low) * x.volume), a = sum(mfv, p.len), v = sum(b.map(x => x.volume), p.len); return { cmf: a.map((x, i) => x == null || !v[i] ? null : x / v[i]) }; } },
     { id: 'ad', name: 'Accumulation/Distribution', short: 'A/D', cat: 'Volume', pane: 'new', inputs: [], plots: [{ k: 'ad', c: '#ff8a3d' }],
       calc: b => { let a = 0; return { ad: b.map(x => (a += x.high === x.low ? 0 : ((x.close - x.low) - (x.high - x.close)) / (x.high - x.low) * x.volume)) }; } },
-    // ---- more TradingView built-ins ----
+    // ---- more built-ins ----
     { id: 'dema', name: 'Double EMA', short: 'DEMA', cat: 'Moving averages', pane: 'overlay', inputs: [I('len', 'Length', 9)], plots: [{ k: 'ma', c: '#4aa8ff' }],
       calc: (b, p) => { const e1 = ema(src(b, 'close'), p.len), e2 = ema(e1, p.len); return { ma: e1.map((v, i) => v == null || e2[i] == null ? null : 2 * v - e2[i]) }; } },
     { id: 'tema', name: 'Triple EMA', short: 'TEMA', cat: 'Moving averages', pane: 'overlay', inputs: [I('len', 'Length', 9)], plots: [{ k: 'ma', c: '#00e5ff' }],
@@ -265,7 +265,7 @@ window.Studies = (() => {
           if (L != null && !lu && b[i].close < L) { mk.push({ i, pos: 'above', shape: 'arrowDown', c: '#ff433d', text: trend > 0 ? 'CHoCH' : 'BOS' }); trend = -1; lu = true; } }
         return { h, l, _markers: mk }; } },
 
-    // ---- popular community scripts (own implementations of the published ideas) ----
+    // ---- community scripts ----
     { id: 'sqz', name: 'Squeeze Momentum', short: 'SQZMOM', cat: 'Community', pane: 'new', inputs: [I('bb', 'BB length', 20), I('bbm', 'BB mult', 2), I('kc', 'KC length', 20), I('kcm', 'KC mult', 1.5)],
       plots: [{ k: 'v', c: '#00e676', name: 'Momentum', type: 'hist' }, { k: 'q', c: '#888888', name: 'Squeeze', type: 'dots' }],
       calc: (b, p) => { const s = src(b, 'close'), bm = sma(s, p.bb), sd = stdev(s, p.bb), km = sma(s, p.kc), rg = sma(tr(b), p.kc), hh = highest(b.map(x => x.high), p.kc), ll = lowest(b.map(x => x.low), p.kc);
@@ -347,7 +347,7 @@ window.Studies = (() => {
         m.forEach((v, i) => { if (!i || v == null || sg[i] == null || m[i - 1] == null || sg[i - 1] == null) return; if (m[i - 1] <= sg[i - 1] && v > sg[i]) mk.push({ i, pos: 'below', shape: 'circle', c: '#00d26a' }); if (m[i - 1] >= sg[i - 1] && v < sg[i]) mk.push({ i, pos: 'above', shape: 'circle', c: '#ff433d' }); });
         return { h, m, s: sg, _colors: { h: h.map((v, i) => v == null ? null : v >= 0 ? (i && h[i - 1] != null && v < h[i - 1] ? '#b2dfdb' : '#26a69a') : (i && h[i - 1] != null && v > h[i - 1] ? '#ffcdd2' : '#ff5252')) }, _markers: mk }; } },
 
-    // ---- levels & sessions (v1.16): previous highs/lows, separators, pivots by period, opening range, sessions, key levels ----
+    // ---- levels and sessions ----
     { id: 'prevhl', name: 'Previous Day / Week / Month High Low', short: 'Prev H/L', cat: 'Levels & sessions', pane: 'overlay', inputs: [I('show', 'Show', 'Day + Week + Month', { opts: ['Day + Week + Month', 'Day + Week', 'Day only', 'Week only', 'Month only'] }), I('cl', 'Previous close too', 'Yes', { opts: ['Yes', 'No'] })],
       plots: [{ k: 'dh', c: '#00e5ff', name: 'PDH', type: 'step' }, { k: 'dl', c: '#00e5ff', name: 'PDL', type: 'step' }, { k: 'dc', c: '#7fdfff', name: 'PDC', type: 'step' }, { k: 'wh', c: '#ff9e1b', name: 'PWH', type: 'step' }, { k: 'wl', c: '#ff9e1b', name: 'PWL', type: 'step' }, { k: 'mh', c: '#ff5fd2', name: 'PMH', type: 'step' }, { k: 'ml', c: '#ff5fd2', name: 'PML', type: 'step' }],
       calc: (b, p) => { const o = {}, on = { D: /Day/.test(p.show), W: /Week/.test(p.show), M: /Month/.test(p.show) };
@@ -453,7 +453,7 @@ window.Studies = (() => {
         return { _markers: mk }; } },
     { id: 'inout', name: 'Inside / Outside Bars', short: 'In/Out bars', cat: 'Levels & sessions', pane: 'overlay', inputs: [], plots: [],
       calc: b => ({ _markers: b.flatMap((x, i) => !i ? [] : x.high < b[i - 1].high && x.low > b[i - 1].low ? [{ i, pos: 'above', shape: 'square', c: '#ff9e1b', text: 'IB', size: 0 }] : x.high > b[i - 1].high && x.low < b[i - 1].low ? [{ i, pos: 'above', shape: 'square', c: '#4aa8ff', text: 'OB', size: 0 }] : []) }) },
-    // ---- more classic indicators (v1.16) ----
+    // ---- more classic indicators ----
     { id: 'alligator', name: 'Williams Alligator', short: 'Alligator', cat: 'Trend', pane: 'overlay', inputs: [I('j', 'Jaw length', 13), I('t', 'Teeth length', 8), I('l', 'Lips length', 5)],
       plots: [{ k: 'j', c: '#2196f3', name: 'Jaw' }, { k: 't', c: '#e91e63', name: 'Teeth' }, { k: 'l', c: '#66bb6a', name: 'Lips' }],
       calc: (b, p) => { const s = src(b, 'hl2'), sh = (a, n) => a.map((_, i) => i >= n ? a[i - n] : null); return { j: sh(rma(s, p.j), 8), t: sh(rma(s, p.t), 5), l: sh(rma(s, p.l), 3) }; } },

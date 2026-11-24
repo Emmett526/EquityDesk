@@ -1,6 +1,5 @@
 'use strict';
-// Keyboard map. Defaults follow the Bloomberg keyboard as emulated on a normal PC keyboard
-// (F1 HELP, F2-F11 yellow sector keys, Enter = GO, Esc = CANCEL, PgUp/PgDn = page). Every binding can be changed in HELP.
+// keyboard map (Bloomberg-style defaults, changeable in HELP)
 window.Keys = (() => {
   const A = [
     // [id, group, label, default]
@@ -10,7 +9,7 @@ window.Keys = (() => {
     ['cancel', 'Bloomberg', 'CANCEL (clear command, stop tool, deselect)', 'Escape'], ['menu', 'Bloomberg', 'MENU (back to previous screen)', 'Alt+ArrowLeft'],
     ['pageFwd', 'Bloomberg', 'PAGE FWD (next panel)', 'PageDown'], ['pageBack', 'Bloomberg', 'PAGE BACK (previous panel)', 'PageUp'], ['cmd', 'Bloomberg', 'Focus the command line', 'Ctrl+L'],
     ['vDesk', 'Screens', 'DESK research desk', 'Ctrl+1'], ['vMon', 'Screens', 'MON monitor', 'Ctrl+2'], ['vGp', 'Screens', 'GP launchpad', 'Ctrl+3'], ['vFin', 'Screens', 'FIN company financials', 'Ctrl+4'],
-    ['vNews', 'Screens', 'NEWS live headlines', 'Ctrl+5'], ['vLab', 'Screens', 'VAL valuation (DCF, ratings, fundamentals)', 'Ctrl+6'], ['vInd', 'Screens', 'CUSTOM customization (indicators, UI)', 'Ctrl+7'], ['vSet', 'Screens', 'SET settings', 'Ctrl+8'], ['vHelp', 'Screens', 'HELP keys & commands', 'Ctrl+9'], ['theme', 'Screens', 'Switch dark / light mode', 'Ctrl+Alt+T'], ['helpSearch', 'Screens', 'Search HELP (on the HELP screen)', 'Ctrl+F'],
+    ['vLab', 'Screens', 'VAL valuation (DCF, ratings, fundamentals)', 'Ctrl+5'], ['vQuant', 'Screens', 'QUANTS quant models (coming soon)', 'Ctrl+6'], ['vNews', 'Screens', 'NEWS live headlines', 'Ctrl+7'], ['vInd', 'Screens', 'SET > Custom (indicators, UI)', 'Ctrl+Shift+8'], ['vSet', 'Screens', 'SET settings', 'Ctrl+8'], ['vHelp', 'Screens', 'HELP keys & commands', 'Ctrl+9'], ['theme', 'Screens', 'Switch dark / light mode', 'Ctrl+Alt+T'], ['helpSearch', 'Screens', 'Search HELP (on the HELP screen)', 'Ctrl+F'],
     ['addChart', 'Panels', 'New chart panel', 'Ctrl+Alt+C'], ['addBook', 'Panels', 'New order book panel', 'Ctrl+Alt+B'], ['addMon', 'Panels', 'New monitor panel', 'Ctrl+Alt+M'], ['addAi', 'Panels', 'New AI assistant panel', 'Ctrl+Alt+A'], ['addWl', 'Panels', 'New watchlist panel', 'Ctrl+Alt+W'],
     ['splitRight', 'Panels', 'Split active area vertically', 'Ctrl+Alt+ArrowRight'], ['splitDown', 'Panels', 'Split active area horizontally', 'Ctrl+Alt+ArrowDown'],
     ['joinArea', 'Panels', 'Join active area with its neighbour', 'Ctrl+Alt+J'], ['closePanel', 'Panels', 'Close active panel', 'Ctrl+W'], ['maxPanel', 'Panels', 'Maximise / restore active area', 'Ctrl+Space'],
@@ -34,9 +33,9 @@ window.Keys = (() => {
     const c = combo(e); if (!c) return false;
     if (capture) { e.preventDefault(); e.stopPropagation(); const cb = capture; capture = null; cb(c === 'Escape' ? null : c); return true; }
     const el = document.activeElement, tag = el && el.tagName, typing = /INPUT|TEXTAREA|SELECT/.test(tag);
-    // While typing, only keys that cannot be text fire (F-keys, Esc, PgUp/PgDn, Ctrl/Alt combos); Delete and plain keys stay with the field.
+    // keys that fire while typing
     const nonText = /^F\d+$/.test(c) || /(^|\+)(Escape|PageUp|PageDown)$/.test(c) || /^(Ctrl|Alt)\+/.test(c);
-    if (typing && (!nonText || /^Ctrl\+[ZYXCVA]$/.test(c))) return false;     // keep normal text editing in fields
+    if (typing && (!nonText || /^Ctrl\+[ZYXCVA]$/.test(c))) return false;   // keep text editing
     const id = Object.keys(map).find(k => map[k] === c); if (!id || !handlers[id]) return false;
     if (handlers[id](e) === false) return false;
     e.preventDefault(); return true;

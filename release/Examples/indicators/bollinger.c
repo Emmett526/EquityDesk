@@ -1,5 +1,5 @@
 /* Example custom indicator (C): Bollinger Bands on the price chart.
- * Import it in Equity Desk: tab 7 CUSTOM > Indicators > Import .py or .c
+ * Import it in Equity Desk: SET > Custom > Indicators > Import .py or .c
  * Needs a C compiler (gcc, clang or tcc); set its path in SET if it is not on PATH.
  *
  * @name Bollinger (example)

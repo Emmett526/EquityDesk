@@ -1,11 +1,9 @@
 'use strict';
-// Exchange depth from Databento (databento.com), read-only. XNAS.ITCH is Nasdaq TotalView-ITCH and XNYS.PILLAR is NYSE's integrated (OpenBook) feed.
-// Uses the historical HTTP API, polling the newest data it has (MBP-10: 10 price levels a side), so it trails the market by however far
-// Databento's historical end lags (seconds to minutes depending on your plan). Usage is billed by Databento per byte.
+// Databento exchange depth (read-only, billed per byte)
 const BASE = 'https://hist.databento.com/v0/';
 const LABEL = { 'XNAS.ITCH': 'Nasdaq TotalView', 'XNYS.PILLAR': 'NYSE OpenBook', 'ARCX.PILLAR': 'NYSE Arca', 'DBEQ.BASIC': 'Databento Equities Basic', 'EQUS.MINI': 'Databento US Equities Mini' };
 const auth = key => ({ Authorization: 'Basic ' + Buffer.from(key + ':').toString('base64') });
-const rangeCache = new Map();   // dataset -> {t, end}
+const rangeCache = new Map();   // dataset end cache
 
 async function call(key, ep, params, method = 'GET') {
   if (!key) throw new Error('Add your Databento API key in SET first.');
@@ -27,7 +25,7 @@ async function book(sym, key, ds) {
   if (/\.[A-Z]{1,2}$/.test(sym) || sym.startsWith('^')) throw new Error('Databento depth here covers US-listed stocks only');
   ds = ds || 'XNAS.ITCH'; const end = await datasetEnd(key, ds), endMs = Date.parse(end);
   let rec = null;
-  for (const win of [2e3, 60e3, 15 * 60e3]) {   // newest record in the smallest window that has one
+  for (const win of [2e3, 60e3, 15 * 60e3]) {   // newest record
     const text = await call(key, 'timeseries.get_range', { dataset: ds, symbols: sym.replace(/-/g, '.'), schema: 'mbp-10', stype_in: 'raw_symbol', encoding: 'json', pretty_px: 'true', pretty_ts: 'true',
       start: new Date(endMs - win).toISOString(), end: new Date(endMs).toISOString(), limit: '20000' }, 'POST');
     const lines = text.trim().split('\n').filter(Boolean);

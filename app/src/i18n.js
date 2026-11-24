@@ -1,23 +1,21 @@
 'use strict';
-// Display language. English is the source text everywhere; another language is a layer on top that swaps
-// what is shown on screen (text, tooltips, placeholders, confirm boxes) using the tables in i18n-zh.js.
-// It never changes values, data, commands or behaviour, and does nothing at all while English is selected.
+// display language layer (text only, never data)
 (function () {
   const TABLES = { 'zh-HK': { dict: window.I18N_ZH || {}, pats: window.I18N_ZH_PAT || [] } };
   const LANGS = [['en', 'English'], ['zh-HK', '繁體中文（香港）']];
   const ATTRS = ['title', 'placeholder', 'aria-label'];
-  const SKIP = 'script,style,textarea,code,pre,.msg > div,.nH,[data-noi18n]';   // never touch code samples, AI messages or headlines
+  const SKIP = 'script,style,textarea,code,pre,.msg > div,.nH,[data-noi18n]';   // skip code, AI messages, headlines
   const SKIP_ATTR = '.msg > div,.nH,[data-noi18n]';
   let lang = 'en', tb = null, mo = null;
   const txt = new WeakMap(), att = new WeakMap(), seen = new Set();
   const norm = s => s.replace(/\s+/g, ' ').trim();
 
-  function tr(s) {   // English -> translation, or null when there is none
+  function tr(s) {   // translate
     const k = norm(s);
     if (!tb || !k || !/[A-Za-z]/.test(k)) return null;
     if (Object.prototype.hasOwnProperty.call(tb.dict, k)) return tb.dict[k];
     for (const [re, f] of tb.pats) { const m = k.match(re); if (m) return typeof f === 'function' ? f(m, T) : k.replace(re, f); }
-    if (k.includes(' · ')) {   // "Chart · updated 10:42" style labels: translate the parts that are known
+    if (k.includes(' · ')) {   // "A · B" labels
       let hit = false; const out = k.split(' · ').map(p => { const t = tr1(p); if (t != null) { hit = true; return t; } return p; });
       if (hit) return out.join(' · ');
     }
@@ -30,7 +28,7 @@
 
   function doText(n) {
     const cur = n.nodeValue, r = txt.get(n);
-    if (r && cur === r.t) return;                          // still showing our translation
+    if (r && cur === r.t) return;   // still ours
     if (skip(n.parentElement)) return;
     const t = tr(cur);
     if (t == null) { txt.delete(n); return; }
@@ -53,7 +51,7 @@
     const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, { acceptNode: x => { if (x.nodeType === 1 && x.matches(SKIP)) { ATTRS.forEach(a => x.hasAttribute(a) && doAttr(x, a)); return NodeFilter.FILTER_REJECT; } return NodeFilter.FILTER_ACCEPT; } });
     let x; while ((x = w.nextNode())) { if (x.nodeType === 3) doText(x); else ATTRS.forEach(a => x.hasAttribute(a) && doAttr(x, a)); }
   }
-  function restore() {   // back to the English source text
+  function restore() {   // back to English
     const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT); let n;
     while ((n = w.nextNode())) { const r = txt.get(n); if (r && n.nodeValue === r.t) n.nodeValue = r.v; txt.delete(n); }
     seen.forEach(el => { const m = att.get(el) || {}; for (const a in m) if (el.getAttribute(a) === m[a].t) el.setAttribute(a, m[a].v); att.delete(el); });
@@ -76,7 +74,7 @@
     mo.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ATTRS });
     document.querySelectorAll('select.langSel').forEach(s => { s.value = l; });
   }
-  // pop-ups the app opens with confirm() / alert() / prompt()
+  // pop-ups
   const oc = window.confirm.bind(window), oa = window.alert.bind(window), op = window.prompt.bind(window);
   window.confirm = m => oc(lang === 'en' ? m : T(String(m)));
   window.alert = m => oa(lang === 'en' ? m : T(String(m)));
@@ -87,7 +85,7 @@
     try { localStorage.setItem('lang', lang); } catch (e) {}
     try { window.api && window.api.set('lang', { lang }); } catch (e) {}
     document.querySelectorAll('select.langSel').forEach(s => { s.value = lang; });
-    setTimeout(() => window.dispatchEvent(new CustomEvent('eqlang', { detail: lang })), 50);   // after lang.json is written: news, names and FIN reload in the new language
+    setTimeout(() => window.dispatchEvent(new CustomEvent('eqlang', { detail: lang })), 50);   // reload in new language
   }
   function fillSelects() {
     document.querySelectorAll('select.langSel').forEach(s => {
@@ -99,6 +97,6 @@
 
   let first = 'en'; try { first = localStorage.getItem('lang') || 'en'; } catch (e) {}
   fillSelects(); apply(first); fillSelects();
-  // the saved choice in lang.json wins (localStorage can be cleared); applied once the app has loaded
+  // apply saved language
   if (window.api) window.api.get('lang').then(v => { const l = v && v.lang; if (l && l !== lang) set(l); }).catch(() => {});
 })();

@@ -1,6 +1,5 @@
 'use strict';
-// The Longbridge SDK is a 70 MB native module, so it is not shipped in the installer. The first time someone picks Longbridge,
-// it is downloaded from the npm registry, checked against the pinned sha512 below, and kept in %APPDATA%\EquityDesk\native.
+// Longbridge SDK: downloaded on first use, sha512 checked
 const fs = require('fs'), path = require('path'), zlib = require('zlib'), crypto = require('crypto');
 const VER = '5.3.0';
 const PKG = {
@@ -8,7 +7,7 @@ const PKG = {
   linux: ['longbridge-linux-x64-gnu', 'longbridge.linux-x64-gnu.node', 'sha512-wEY7EsKwKaBwSuuM4kSwodSu4HY4OHJj5t+lXhQlWpJ9WDEXXzGPS4c0Cy5wIGmMmEBlYZO4I3frCPsKilvMHg==']
 };
 let mod = null, loading = null;
-function untar(buf, want) {   // minimal ustar reader: returns the file whose name ends with `want`
+function untar(buf, want) {   // tar reader
   for (let o = 0; o + 512 <= buf.length;) {
     const name = buf.toString('utf8', o, o + 100).replace(/\0.*$/s, ''); if (!name) break;
     const size = parseInt(buf.toString('ascii', o + 124, o + 136).replace(/\0.*$/s, '').trim() || '0', 8);

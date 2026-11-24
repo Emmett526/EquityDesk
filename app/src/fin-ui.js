@@ -1,6 +1,6 @@
 'use strict';
-// FIN screen: company financials laid out like TradingView's Financials (Overview, Statements, Statistics, Estimates, Dividends, Earnings, Segments).
-// Data comes from api.fin(sym) (Yahoo Finance + FMP segments, main process). Everything inserted into HTML is escaped. Research only.
+// FIN screen (company financials)
+// data from api.fin
 const FinScreen = (() => {
   const TABS = [['ov', 'Overview'], ['st', 'Statements'], ['stat', 'Statistics'], ['est', 'Estimates'], ['div', 'Dividends'], ['earn', 'Earnings'], ['seg', 'Segments']];
   let P = { sym: '', tab: 'ov', per: 'annual', stmt: 'is' }, D = null, busy = false, root = null, CW = 1200;
@@ -20,7 +20,7 @@ const FinScreen = (() => {
   const plabel = d => P.per === 'annual' ? 'FY' + String(d).slice(0, 4) : new Date(d + 'T00:00:00Z').toLocaleDateString('en', { month: 'short', year: 'numeric', timeZone: 'UTC' });
   const row = k => (ts().rows || {})[k] || [];
   const priceAt = d => { const t = Date.parse(d + 'T23:59:59Z') / 1000, px = D.px || []; let v = null; for (const [pt, c] of px) { if (pt <= t) v = c; else break; } return v; };
-  // ---- SVG bar chart: grouped bars, optional hatched forecast zone, value axis on the right ----
+  // ---- bar chart ----
   function chart(labels, series, o = {}) {
     const W = Math.round(Math.max(300, o.half ? (CW >= 940 ? (CW - 10) / 2 - 22 : CW - 22) : CW - 22)), H = o.h || (o.half ? 170 : 200), padL = 8, padR = 64, padB = 22, padT = 8, n = labels.length; if (!n) return '<div class="mut small finEmpty">No data</div>';
     const vals = series.flatMap(s => s.vals.filter(v => v != null && Number.isFinite(v))); if (!vals.length) return '<div class="mut small finEmpty">No data</div>';
@@ -37,7 +37,7 @@ const FinScreen = (() => {
     const leg = [...series.map(s => [s.name, s.c]), ...(o.lines || []).map(l => [l.name, l.c])].map(([nm, c]) => `<span><i style="background:${c}"></i>${esc(nm)}</span>`).join('');
     return `<svg class="finSvg" viewBox="0 0 ${W} ${H}" style="height:${H}px" preserveAspectRatio="none"><defs><pattern id="finHatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="8" class="finHatchL"/></pattern></defs>${g}</svg><div class="finLeg">${leg}</div>`;
   }
-  // reported vs estimate table + chart (the Earnings / Estimates layout)
+  // reported vs estimate
   function repEst(title, labels, rep, est, fmt, fcFrom, note) {
     const sur = labels.map((_, i) => rep[i] != null && est[i] != null && est[i] ? (rep[i] - est[i]) / Math.abs(est[i]) * 100 : null), f = v => fmt === 'eps' ? num(v) : big(v);
     return `<div class="finCard"><div class="finH"><b>${esc(title)}</b>${note ? `<span class="mut small">${esc(note)}</span>` : ''}</div>` +
@@ -45,8 +45,8 @@ const FinScreen = (() => {
       `<table class="finT"><thead><tr><th>Currency: ${esc(D.finCcy)}</th>${labels.map(l => `<th>${esc(l)}</th>`).join('')}</tr></thead><tbody>` +
       `<tr class="hl"><td>Reported</td>${rep.map(v => `<td>${f(v)}</td>`).join('')}</tr><tr class="hl"><td>Estimate</td>${est.map(v => `<td>${f(v)}</td>`).join('')}</tr><tr><td>Surprise</td>${sur.map(v => `<td>${sp(v)}</td>`).join('')}</tr></tbody></table></div>`;
   }
-  // ---- data assembly for reported vs estimate ----
-  function epsRev(kind) {   // kind 'eps' | 'rev' → {labels, rep, est, fcFrom}
+  // ---- reported vs estimate data ----
+  function epsRev(kind) {   // kind: eps | rev
     if (P.per === 'annual') {
       const a = D.annual, L = a.dates.map(d => 'FY' + d.slice(0, 4)), rep = ((kind === 'eps' ? a.rows.DilutedEPS : a.rows.TotalRevenue) || L.map(() => null)).slice(), est = L.map(() => null);
       D.trend.filter(t => /y$/.test(t.period)).forEach(t => { const l = 'FY' + String(t.end || '').slice(0, 4), v = kind === 'eps' ? t.eps : t.rev, i = L.indexOf(l); if (i >= 0) est[i] = v; else { L.push(l); rep.push(null); est.push(v); } });
@@ -58,7 +58,7 @@ const FinScreen = (() => {
     const fc = L.length; D.trend.filter(t => /q$/.test(t.period)).forEach(t => { L.push(t.end ? new Date(t.end + 'T00:00:00Z').toLocaleDateString('en', { month: 'short', year: 'numeric', timeZone: 'UTC' }) + 'ᵉ' : t.period); rep.push(null); est.push(kind === 'eps' ? t.eps : t.rev); });
     return { labels: L, rep, est, fcFrom: fc < L.length ? fc : null };
   }
-  // ---- ratios per period (Statistics) ----
+  // ---- ratios ----
   function ratios() {
     const t = ts(), R = k => t.rows[k] || [], n = t.dates.length, mult = P.per === 'annual' ? 1 : 4;
     const ttm = (k, i) => { const a = R(k); if (P.per === 'annual') return a[i]; if (i < 3) return null; let s = 0; for (let j = i - 3; j <= i; j++) { if (a[j] == null) return null; s += a[j]; } return s; };
@@ -137,7 +137,7 @@ const FinScreen = (() => {
     const tot = rc ? rc.sb + rc.b + rc.h + rc.s + rc.ss : 0;
     const rating = rc && tot ? `<div class="finRec">${[['Strong buy', rc.sb, '#00a854'], ['Buy', rc.b, '#4caf50'], ['Hold', rc.h, '#9e9e9e'], ['Sell', rc.s, '#ff7043'], ['Strong sell', rc.ss, '#d32f2f']].map(([l, v, c]) => `<div><span>${l}</span><i style="width:${v / tot * 100}%;background:${c}"></i><b>${v}</b></div>`).join('')}</div><div class="small">Consensus: <b>${esc(String(f.rec || '').replace('_', ' ').toUpperCase() || '—')}</b>${f.recMean ? ' (' + num(f.recMean) + ' on a 1 strong buy to 5 strong sell scale)' : ''}</div>` : '<div class="mut small">No analyst ratings.</div>';
     const tr = D.trend.length ? `<table class="finT"><thead><tr><th>Period</th><th>Ends</th><th>EPS avg</th><th>EPS low</th><th>EPS high</th><th>Analysts</th><th>Revenue avg</th><th>Revenue low</th><th>Revenue high</th><th>Growth</th></tr></thead><tbody>${D.trend.map(t => `<tr><td>${esc({ '0q': 'This quarter', '+1q': 'Next quarter', '0y': 'This fiscal year', '+1y': 'Next fiscal year' }[t.period] || t.period)}</td><td>${esc(t.end || '—')}</td><td>${num(t.eps)}</td><td>${num(t.epsLo)}</td><td>${num(t.epsHi)}</td><td>${t.epsN ?? '—'}</td><td>${big(t.rev)}</td><td>${big(t.revLo)}</td><td>${big(t.revHi)}</td><td>${t.growth != null ? sp(t.growth * 100) : '—'}</td></tr>`).join('')}</tbody></table>` : '';
-    return `<div class="finGrid2"><div class="finCard"><div class="finH"><b>Analyst rating</b></div>${rating}</div><div class="finCard"><div class="finH"><b>Price target (1 year)</b></div>${tgt}</div></div>` +
+    return `<div class="finGrid2"><div class="finCard"><div class="finH"><b>Analyst rating</b></div>${rating}</div>${Tech.card(D.symbol)}</div><div class="finCard"><div class="finH"><b>Price target (1 year)</b></div>${tgt}</div>` +
       repEst('EPS estimates', e.labels, e.rep, e.est, 'eps', e.fcFrom) + repEst('Revenue estimates', r.labels, r.rep, r.est, 'rev', r.fcFrom) + (tr ? `<div class="finCard"><div class="finH"><b>Consensus detail</b></div>${tr}</div>` : '');
   }
   function dividends() {
@@ -185,6 +185,7 @@ const FinScreen = (() => {
     const r = await api.fin(sym); busy = false; if (P.sym !== sym) return;
     if (!r || r.error) { $f('#finName').textContent = ''; $f('#finBody').innerHTML = `<div class="dn finEmpty">${esc((r && r.error) || 'No data')}</div>`; return; }
     D = r; draw();
+    Tech.get(sym).then(() => { if (P.sym === sym && D) draw(); });
   }
   function init() {
     root = document.getElementById('v-fin'); if (!root || root.dataset.ready) return; root.dataset.ready = 1;

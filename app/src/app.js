@@ -14,23 +14,24 @@ const say = (src, t) => { const now = Date.now(), last = t && now - t > 5 * 60e3
 const status = t => { $('#stMsg').textContent = t || ''; };
 const RG = ['1D', '5D', '1M', '3M', '6M', '1Y', '5Y'];
 const IVL = [['auto', 'Auto'], ['Seconds (live)', ['1s', '5s', '15s', '30s']], ['Minutes', ['1m', '2m', '5m', '15m', '30m']], ['Hours', ['1h', '2h', '4h']], ['Days', ['D', 'W', 'M']]];
-const IV_RANGE = { '1m': '1D', '2m': '5D', '5m': '5D', '15m': '1M', '30m': '1M', '1h': '3M', '2h': '6M', '4h': '1Y', D: '1Y', W: '5Y', M: '5Y' };   // a sensible range when you pick an interval
+const IV_RANGE = { '1m': '1D', '2m': '5D', '5m': '5D', '15m': '1M', '30m': '1M', '1h': '3M', '2h': '6M', '4h': '1Y', D: '1Y', W: '5Y', M: '5Y' };   // range for each interval
 const ivSec = iv => /^\d+s$/.test(iv || '') ? parseInt(iv) : 0;
-const tickStore = {};   // 'SYM|5s' -> bars built live from ticks this session
+const tickStore = {};   // live second bars
 let chartPrefs = { syncStudies: true }, lastStudies = null;
 const PAL = ['#ffd400', '#4aa8ff', '#ff5fd2', '#00e5ff', '#a0ff5f', '#ff8a3d', '#ffffff', '#c586ff'];
 
 // ---- navigation ----
-const VIEWS = ['desk', 'watch', 'gp', 'news', 'fin', 'ind', 'set', 'help'];
+const VIEWS = ['desk', 'watch', 'gp', 'fin', 'lab', 'quant', 'news', 'ind', 'set', 'help'];
 function go(v, noHist) {
   if (v !== view && !noHist) viewHist.push(view); view = v; if (typeof api !== 'undefined') api.set('lastview', v);
-  $$('#fkeys button[data-v]').forEach(b => b.classList.toggle('on', b.dataset.v === v)); $$('.view').forEach(x => x.classList.toggle('on', x.id === 'v-' + v));
+  $$('#fkeys button[data-v]').forEach(b => b.classList.toggle('on', b.dataset.v === (v === 'ind' ? 'set' : v))); $$('.view').forEach(x => x.classList.toggle('on', x.id === 'v-' + v));
   if (v === 'desk' && $('#deskFrame').style.display !== 'block') loadDeskHome(); if (v === 'watch') drawWatch(lastQuotes); if (v === 'gp') ensureWorkspace(); if (v === 'ind') loadInd(); if (v === 'set') showSettings(); if (v === 'help') drawKeys(); if (v === 'news') newsScreen().load(); if (v === 'fin' && typeof FinScreen !== 'undefined') FinScreen.show(); if (v === 'lab' && typeof ValScreen !== 'undefined') ValScreen.show();
 }
 $$('#fkeys button[data-v]').forEach(b => b.onclick = () => go(b.dataset.v));
+$$('.setTabs button[data-go]').forEach(b => b.onclick = () => go(b.dataset.go));
 
-// ---- command line (Bloomberg-style) ----
-const CMD_VIEWS = { NEWS: 'news', N: 'news', TOP: 'news', CN: 'news', DESK: 'desk', MON: 'watch', MONITOR: 'watch', WATCH: 'watch', IND: 'ind', INDICATORS: 'ind', CUSTOM: 'ind', CUST: 'ind', CUSTOMIZE: 'ind', CUSTOMIZATION: 'ind', SET: 'set', SETTINGS: 'set', FIN: 'fin', FA: 'fin', FINANCIALS: 'fin', HELP: 'help', LAB: 'lab', VAL: 'lab', VALUATION: 'lab', DCF: 'lab', LAUNCHPAD: 'gp', BLP: 'gp' };
+// ---- command line ----
+const CMD_VIEWS = { NEWS: 'news', N: 'news', TOP: 'news', CN: 'news', DESK: 'desk', MON: 'watch', MONITOR: 'watch', WATCH: 'watch', IND: 'ind', INDICATORS: 'ind', CUSTOM: 'ind', QUANT: 'quant', QUANTS: 'quant', QNT: 'quant', CUST: 'ind', CUSTOMIZE: 'ind', CUSTOMIZATION: 'ind', SET: 'set', SETTINGS: 'set', FIN: 'fin', FA: 'fin', FINANCIALS: 'fin', HELP: 'help', LAB: 'lab', VAL: 'lab', VALUATION: 'lab', DCF: 'lab', LAUNCHPAD: 'gp', BLP: 'gp' };
 const SECTORS = ['EQUITY', 'INDEX', 'CRNCY', 'CURNCY', 'CMDTY', 'COMDTY', 'GOVT', 'CORP', 'MTGE', 'M-MKT', 'MUNI', 'PFD', 'US', 'UN', 'UW', 'UQ'];
 const MAP = {
   INDEX: { SPX: '^GSPC', INDU: '^DJI', CCMP: '^IXIC', NDX: '^NDX', RTY: '^RUT', VIX: '^VIX', SX5E: '^STOXX50E', UKX: '^FTSE', NKY: '^N225', HSI: '^HSI', DAX: '^GDAXI',
@@ -39,11 +40,11 @@ const MAP = {
   CMDTY: { CL1: 'CL=F', CO1: 'BZ=F', GC1: 'GC=F', SI1: 'SI=F', NG1: 'NG=F', HG1: 'HG=F', C1: 'ZC=F', W1: 'ZW=F', S1: 'ZS=F' },
   GOVT: { USGG3M: '^IRX', USGG5YR: '^FVX', USGG10YR: '^TNX', USGG30YR: '^TYX' }
 };
-// Bloomberg-style market codes typed after the ticker ("700 HK", "7203 JT", "2330 TT") -> Yahoo symbols (0700.HK, 7203.T, 2330.TW)
+// market codes (700 HK) -> Yahoo
 const MKT = { HK: t => t.padStart(4, '0') + '.HK', JP: '.T', JT: '.T', TT: '.TW', TWO: '.TWO', KS: t => t.padStart(6, '0') + '.KS', KQ: t => t.padStart(6, '0') + '.KQ',
   CH: t => t.padStart(6, '0') + (/^[69]/.test(t.padStart(6, '0')) ? '.SS' : '.SZ'), CG: '.SS', CS: '.SZ', LN: '.L', GR: '.DE', GY: '.DE', FP: '.PA', NA: '.AS', SM: '.MC', IM: '.MI', SW: '.SW', SE: '.SW',
   AU: '.AX', CT: '.TO', IN: '.NS', IS: '.NS', IB: '.BO', SP: '.SI', NZ: '.NZ' };
-function withMarket(w) {   // folds a market code at position 1 into the ticker
+function withMarket(w) {   // fold market code into ticker
   if (w.length >= 2 && MKT[w[1]] && /^[A-Z0-9.\-]+$/.test(w[0]) && !w[0].includes('.')) { const f = MKT[w[1]]; return [typeof f === 'function' ? f(w[0]) : w[0].replace(/\./g, '-') + f, ...w.slice(2)]; }
   return w;
 }
@@ -84,19 +85,19 @@ async function runCmd(raw) {
 $('#cmd').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); runCmd($('#cmd').value); } };
 $('#goKey').onclick = () => runCmd($('#cmd').value);
 $('#helpKey').onclick = () => go('help');
-function sectorKey(word) {   // Bloomberg yellow keys: "NVDA" then F8 (EQUITY) opens it straight away; on an empty line it waits for a ticker
+function sectorKey(word) {   // yellow keys (F8 etc.)
   const c = $('#cmd'), v = c.value.trim();
   if (v && !/\s(GP|BOOK|CN|WL|AIS|IDEA)$/i.test(v)) { runCmd(v + ' <' + word + '>'); return; }
   c.value = (v ? v + ' ' : '') + word + ' '; c.focus(); $('#sectorHint').textContent = '<' + word + '> · type a ticker first, e.g. NVDA then F8';
 }
 
-// Clocks tick every second, all 24-hour with seconds. LOCAL uses the PC's own time zone (shown with its abbreviation, e.g. HKT).
+// clocks
 const zoneParts = (tz, d) => Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: tz, weekday: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23', timeZoneName: 'short' }).formatToParts(d).map(p => [p.type, p.value]));
 const sysTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-let localTz = sysTz, PROF = {};   // PROF: first-launch profile {name, loc, tz, market, ccy, done}
+let localTz = sysTz, PROF = {};   // profile
 const hms = p => `${p.hour}:${p.minute}:${p.second}`;
 const fmtLocal = t => new Intl.DateTimeFormat('en-GB', { timeZone: localTz, hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).format(new Date(t));
-// Major exchanges: local time zone, regular sessions in local minutes (lunch breaks split them), Yahoo symbol suffixes. Holidays are not included.
+// exchanges: time zone, sessions, suffixes
 const EXCH = {
   NY: ['New York (NYSE, Nasdaq)', 'America/New_York', [[570, 960]], []], TOR: ['Toronto (TSX)', 'America/Toronto', [[570, 960]], ['TO', 'V']],
   LDN: ['London (LSE)', 'Europe/London', [[480, 990]], ['L']], FRA: ['Frankfurt (Xetra)', 'Europe/Berlin', [[540, 1050]], ['DE', 'F']],
@@ -109,7 +110,7 @@ const EXCH = {
 const CLOCK_DEF0 = ['NY', 'LDN', 'HK', 'SHA', 'TPE', 'TKY'];
 const clockDef = () => PROF.market && EXCH[PROF.market] ? [PROF.market, ...CLOCK_DEF0.filter(k => k !== PROF.market)].slice(0, 7) : CLOCK_DEF0;
 const IDX_EXCH = { '^HSI': 'HK', '^HSCE': 'HK', '^N225': 'TKY', '^TWII': 'TPE', '^KS11': 'SEL', '^KQ11': 'SEL', '^FTSE': 'LDN', '^GDAXI': 'FRA', '^FCHI': 'PAR', '^AEX': 'PAR', '^IBEX': 'PAR', '^SSMI': 'ZRH', '^STOXX50E': 'FRA', '^AXJO': 'SYD', '^BSESN': 'MUM', '^NSEI': 'MUM', '^STI': 'SGP', '^GSPTSE': 'TOR' };
-function exchOf(sym) {   // exchange code for a symbol, or null for FX, futures and crypto
+function exchOf(sym) {   // exchange of a symbol
   sym = String(sym || ''); if (IDX_EXCH[sym]) return IDX_EXCH[sym]; if (/=X$|=F$|-USD$/.test(sym)) return null; if (sym.startsWith('^')) return 'NY';
   const m = sym.match(/\.([A-Z]{1,3})$/); if (!m) return 'NY'; return Object.keys(EXCH).find(k => EXCH[k][3].includes(m[1])) || null;
 }
@@ -125,17 +126,17 @@ const dur = m => { m = Math.round(m); const d = Math.floor(m / 1440), h = Math.f
 function tick() {
   const now = new Date(), lo = zoneParts(localTz, now), list = (S.clocks || clockDef()).filter(k => EXCH[k]);
   const loName = /^(GMT|UTC)/.test(lo.timeZoneName) && localTz.includes('/') ? localTz.split('/').pop().replace(/_/g, ' ').toUpperCase() : /^(GMT|UTC)/.test(lo.timeZoneName) ? 'LOCAL' : lo.timeZoneName;
-  let c = null; try { c = activeChart(); } catch (e) {}   // the workspace may not exist yet on the first tick
+  let c = null; try { c = activeChart(); } catch (e) {}   // workspace not ready yet
   const ex = c && exchOf(c.p.sym) || PROF.market || 'NY', m = exchState(ex, now);
   $('#clocks').innerHTML = list.map(k => { const x = exchState(k, now); return `<span class="clk" title="${esc(x.name)} · ${x.txt.toLowerCase()}${x.tip ? ', ' + x.tip : ''} (holidays not included)"><i class="cdot ${x.open ? 'on' : x.lunch ? 'lu' : ''}"></i>${k} <b>${EXCH[k][1] === localTz ? hms(x.n) : x.n.hour + ':' + x.n.minute}</b></span>`; }).join('') +
-    (list.some(k => EXCH[k][1] === localTz) ? '' : `<span class="clk" title="Your time zone: ${esc(localTz)} (${esc(lo.timeZoneName)})">${esc(loName)} <b>${hms(lo)}</b></span>`) +   // skipped when an exchange clock already shows the PC's zone
+    (list.some(k => EXCH[k][1] === localTz) ? '' : `<span class="clk" title="Your time zone: ${esc(localTz)} (${esc(lo.timeZoneName)})">${esc(loName)} <b>${hms(lo)}</b></span>`) +   // skip local clock if shown
 
     `<span class="${m.open ? 'up' : 'dn'}" title="${esc(m.name)}: ${m.tip} (holidays not included). Market of the active chart.">${ex === 'NY' ? 'US' : ex} MKT ${m.txt}</span>`;
 }
 tick(); setInterval(tick, 1000);
 
-// ---- profile (first launch): name, location, time zone, primary market, display currency ----
-const MKT_HOME = {   // market -> [Yahoo index, currency, starter MON list]
+// ---- profile (first launch) ----
+const MKT_HOME = {   // market -> index, currency, starter list
   NY: ['^GSPC', 'USD', ['SPY', 'QQQ', 'DIA', 'IWM', 'NVDA', 'MSFT', 'AAPL', 'AMZN']], TOR: ['^GSPTSE', 'CAD', ['^GSPTSE', 'RY.TO', 'TD.TO', 'SHOP.TO', 'ENB.TO', 'CNR.TO']],
   LDN: ['^FTSE', 'GBP', ['^FTSE', 'SHEL.L', 'AZN.L', 'HSBA.L', 'ULVR.L', 'BP.L']], FRA: ['^GDAXI', 'EUR', ['^GDAXI', 'SAP.DE', 'SIE.DE', 'ALV.DE', 'DTE.DE', 'MBG.DE']],
   PAR: ['^FCHI', 'EUR', ['^FCHI', 'MC.PA', 'OR.PA', 'TTE.PA', 'SAN.PA', 'AIR.PA']], ZRH: ['^SSMI', 'CHF', ['^SSMI', 'NESN.SW', 'NOVN.SW', 'ROG.SW', 'UBSG.SW']],
@@ -154,7 +155,7 @@ const isTz = z => { try { new Intl.DateTimeFormat('en', { timeZone: z }); return
 const guessMkt = tz => Object.keys(EXCH).find(k => EXCH[k][1] === tz) || 'NY';
 const CCY_NAME = { USD: 'US dollar', EUR: 'Euro', GBP: 'British pound', JPY: 'Japanese yen', CNY: 'Chinese yuan', HKD: 'Hong Kong dollar', CAD: 'Canadian dollar', AUD: 'Australian dollar', CHF: 'Swiss franc', INR: 'Indian rupee', SGD: 'Singapore dollar', KRW: 'Korean won', TWD: 'Taiwan dollar', MYR: 'Malaysian ringgit', THB: 'Thai baht' };
 function tzOff(z) { try { return new Intl.DateTimeFormat('en', { timeZone: z, timeZoneName: 'shortOffset' }).formatToParts(new Date()).find(p => p.type === 'timeZoneName').value.replace('GMT', 'UTC'); } catch (e) { return ''; } }
-// searchable pickers: an input with a datalist (type to filter, or scroll the list); the typed text is matched back to a value
+// searchable picker
 function picker(id, items, val) {   // items: [value, label]
   $('#' + id + 'L').innerHTML = items.map(x => `<option value="${esc(x[1])}"></option>`).join(''); $('#' + id).dataset.v = val || ''; $('#' + id).value = (items.find(x => x[0] === val) || [, ''])[1];
   $('#' + id)._items = items;
@@ -175,7 +176,7 @@ function showSetup(first) {
   picker('pfCcy', CCYS.map(c => [c, `${c} - ${CCY_NAME[c] || c}`]), PROF.ccy || MKT_HOME[mk][1]);
   $('#pfMkt').onchange = () => { const m = pickVal('pfMkt'); if (!m) return; $('#pfCcy').value = $('#pfCcy')._items.find(x => x[0] === MKT_HOME[m][1])[1]; if (!PROF.tz) $('#pfTz').value = $('#pfTz')._items.find(x => x[0] === EXCH[m][1])[1]; };
   $('#pfLoc').onchange = () => { const c = $('#pfLoc').value.trim().toLowerCase(), z = tzs.find(z => city(z).toLowerCase() === c); if (z) $('#pfTz').value = $('#pfTz')._items.find(x => x[0] === z)[1]; };
-  ['pfMkt', 'pfTz', 'pfCcy', 'pfLoc'].forEach(id => { const e = $('#' + id); e.placeholder = e.placeholder || '';   // empty on focus so the whole list shows and scrolls; restored if nothing is picked
+  ['pfMkt', 'pfTz', 'pfCcy', 'pfLoc'].forEach(id => { const e = $('#' + id); e.placeholder = e.placeholder || '';   // show full list on focus
     e.onfocus = () => { if (e.value) { e.dataset.prev = e.value; e.placeholder = e.value; e.value = ''; } }; e.onblur = () => { if (!e.value.trim() && e.dataset.prev) e.value = e.dataset.prev; }; });
   D.hidden = false; $('#pfName').focus();
   const close = async save => {
@@ -190,7 +191,7 @@ function showSetup(first) {
     if (save && PROF.ccy !== monCfg.ccy) { monCfg.ccy = PROF.ccy; api.set('mon', monCfg); }
     if (save) { allPanels('watchlist').forEach(w => { w.p.ccy = PROF.ccy; }); saveWs(); await ensureFx(PROF.ccy, [...new Set([...watch, ...WL.lists.flatMap(l => l.syms), ...allPanels('chart').map(c => c.p.sym)])]);
       drawWatch(lastQuotes); allPanels('watchlist').forEach(w => w.draw()); allPanels('chart').forEach(c => c.legend()); }
-    if (save && !was && PROF.market !== 'NY') {   // first launch: start MON and the main watchlist on the home market
+    if (save && !was && PROF.market !== 'NY') {   // first launch: home market list
       setMonSyms(MKT_HOME[PROF.market][2].slice()); refreshWatch();
     }
     if (save && first) setupAi($('#pfAi').value, $('#pfAiDl').checked);
@@ -199,7 +200,7 @@ function showSetup(first) {
   $('#pfOk').onclick = () => close(true); $('#pfSkip').onclick = () => close(false); D.querySelector('[data-close]').onclick = () => close(!first);
   $('#pfName').onkeydown = e => { if (e.key === 'Enter') close(true); };
 }
-// first launch: the chosen local model becomes the assistant, and is downloaded through Ollama if asked
+// first launch: local AI model
 async function setupAi(id, download) {
   await api.setSettings({ aiProvider: 'ollama', ollamaModel: id }); S = await api.settings();
   if (!download) return status('AI assistant: ' + id + '. Download it in SET > AI assistant when you want it.');
@@ -224,7 +225,7 @@ async function showDesk(d) {
   allPanels('chart').forEach(c => c.drawLevels());
 }
 $('#openPicks').onclick = async () => showDesk(await api.openPicks());
-// DESK home: a market overview that works without any picks file
+// DESK home
 const DESK_GROUPS = [['United States', [['^GSPC', 'S&P 500'], ['^IXIC', 'Nasdaq'], ['^DJI', 'Dow'], ['^RUT', 'Russell 2000'], ['^VIX', 'VIX']]],
   ['Europe', [['^FTSE', 'FTSE 100'], ['^GDAXI', 'DAX'], ['^FCHI', 'CAC 40'], ['^STOXX50E', 'Euro Stoxx 50']]],
   ['Asia-Pacific', [['^HSI', 'Hang Seng'], ['000001.SS', 'Shanghai'], ['^N225', 'Nikkei 225'], ['^TWII', 'Taiwan'], ['^KS11', 'KOSPI'], ['^AXJO', 'ASX 200']]],
@@ -238,7 +239,7 @@ async function loadDeskHome() {
     (q || []).forEach(x => { deskQ[x.symbol] = x; }); if (n && Array.isArray(n.items)) { deskNews = n.items.slice(0, 12); newsCache[''] = n.items; } drawDeskHome(); }
   finally { deskBusy = false; }
 }
-// DESK help box: how to add a free FMP key (FIN > Segments). Shown until a key is saved or the box is hidden. Written in both languages, not run through i18n.
+// DESK FMP help box (EN + ZH)
 let fmpHide = false; try { fmpHide = localStorage.getItem('fmpBoxHidden') === '1'; } catch (e) {}
 function fmpBox() {
   if (fmpHide || (S && S.has && S.has.fmpKey)) return '';
@@ -272,9 +273,9 @@ $('#deskGrid').onclick = e => { const f = e.target.closest('[data-fmp]'); if (f)
   const n = e.target.closest('[data-u]'); if (n) return api.openUrl(n.dataset.u); const r = e.target.closest('tr[data-s]'); if (r) { go('gp'); (activeChart() || focusPanel('chart').inst).load(r.dataset.s); } };
 $('#deskBrief').onclick = () => { go('gp'); focusPanel('ai').inst.send('Give me a short market brief: what is moving in US, Europe and Asia today and why, what stands out in my MON list, and the 3 headlines that matter most. Use the app tools (quotes for the main indices, app_state, news) and keep it under 220 words.', { show: '✦ AI market brief', ctx: false }); };
 
-// ---- monitor (watchlist) + ticker tape ----
+// ---- monitor + ticker tape ----
 async function loadWatch() { const mc = await api.get('mon'); if (mc && CCYS.includes(mc.ccy) && Array.isArray(mc.cols)) monCfg = mc; }
-let monCfg = { ccy: 'EUR', cols: ['pe', 'eps', 'beta', 'alpha', 'delta', 'theta'] };   // MON screen: "Last in" currency and extra stat columns (saved as mon.json)
+let monCfg = { ccy: 'EUR', cols: ['pe', 'eps', 'beta', 'alpha', 'delta', 'theta'] };   // MON currency and columns
 const fxSel = cur => `<select class="fxSel" title="Show Last in this currency">${CCYS.map(c => `<option${c === cur ? ' selected' : ''}>${c}</option>`).join('')}</select>`;
 const monStatCols = () => WL_COLS.filter(c => monCfg.cols.includes(c[0]) && !['price', 'fx', 'chg', 'pct', 'vol'].includes(c[0]));
 function watchHead() {
@@ -297,11 +298,11 @@ function drawWatch(q) {
   const ok = q.filter(x => !x.error && x.price != null);
   $('#tapeIn').innerHTML = ok.length ? ok.map(x => `<span data-s="${esc(x.symbol)}"><b>${esc(x.symbol)}</b>${pxMine(x.symbol, x.price)} <i class="${cls(x.pct)}">${x.pct == null ? '' : sgn(x.pct) + x.pct.toFixed(2) + '%'}</i></span>`).join('') : '<span class="mut">Add tickers in MON to fill the tape</span>';
 }
-let watchBusy = false, watchAgain = false;   // one refresh at a time; a request made meanwhile runs once after
+let watchBusy = false, watchAgain = false;   // one refresh at a time
 async function refreshWatch() { if (watchBusy) { watchAgain = true; return; } watchBusy = true; try { await refreshWatch1(); } finally { watchBusy = false; } if (watchAgain) { watchAgain = false; refreshWatch(); } }
 async function refreshWatch1() { if (!watch.length) return; const q = await api.quotes(watch); lastQuotes = q; q.forEach(x => { if (!x.error) wlQuotes[x.symbol] = x; }); drawWatch(q); await ensureFx(monCfg.ccy, watch); if (myCcy() && myCcy() !== monCfg.ccy) await ensureFx(myCcy(), watch); drawWatch(q); if (view === 'desk') drawDeskHome(); ensureStats(watch); const ok = q.find(x => !x.error); if (ok) say(ok.src, ok.time); }
 async function addWatch(s) { s = clean(s); if (s && !watch.includes(s)) setMonSyms([...watch, s]); drawWatch(lastQuotes); refreshWatch(); }
-// MON shows one list from watchlists.json (WL.monitor); MON and the watchlist panels edit the same file
+// MON list
 const monList = () => WL && WL.lists.length ? WL.lists.find(l => l.id === WL.monitor) || WL.lists[0] : null;
 function setMonSyms(arr) { watch = [...new Set(arr)]; const l = monList(); if (l) { l.syms = watch.slice(); api.set('watchlists', WL); allPanels('watchlist').forEach(w => w.draw()); } drawMonList(); }
 function drawMonList() { const l = monList(), sel = $('#monList'); if (!sel || !l) return; sel.innerHTML = WL.lists.map(x => `<option value="${esc(x.id)}"${x === l ? ' selected' : ''}>${esc(x.name)} (${x.syms.length})</option>`).join(''); }
@@ -323,11 +324,10 @@ $('#addBtn').onclick = async () => { await addWatch($('#addSym').value); $('#add
 $('#addSym').onkeydown = e => { if (e.key === 'Enter') $('#addBtn').click(); }; $('#refWatch').onclick = refreshWatch;
 
 // ---- studies ----
-// A chart holds a list of study instances, like TradingView: {u, t: builtin id | 'ind:<custom id>', params, colors, off (hidden plots), width, pane, hidden}.
-// The same study can be added any number of times with different settings.
+// study instance: {u, t, params, colors, off, width, pane, hidden}
 let indDefs = [], allDrawings = {}, saveDrawT = null;
 const customDef = t => t.startsWith('ind:') ? indDefs.find(d => 'ind:' + d.id === t) : null;
-function studyMeta(t) {   // a uniform description of a built-in or custom (Python/C) study
+function studyMeta(t) {   // study info
   const c = customDef(t);
   if (c) return { name: c.name, short: c.name, cat: 'Custom', custom: c, pane: c.pane === 'separate' ? 'new' : 'overlay', levels: c.levels || [],
     inputs: c.params.map(p => ({ k: p.name, l: p.name, d: p.value })), plots: (c.outputs.length ? c.outputs : ['out1']).filter(k => !(k.endsWith('_color') && (c.palettes || {})[k.slice(0, -6)])).map((k, i) => ({ k, c: PAL[i % PAL.length], type: (c.styles || {})[k] })) };
@@ -339,7 +339,7 @@ function newStudy(t, params, colors) {
   return { u: uid('s'), t, params: { ...Object.fromEntries(m.inputs.map(i => [i.k, i.d])), ...(params || {}) }, colors: colors || {}, off: {}, width: 1, pane: m.pane, hidden: false };
 }
 const OLD_STUDY = { sma20: ['sma', 20], sma50: ['sma', 50, '#4aa8ff'], ema21: ['ema', 21], sma200: ['sma', 200, '#ffffff'] };
-function migrateStudies(list) {   // v1.2 stored plain strings such as 'sma20' or 'ind:<id>'
+function migrateStudies(list) {   // old saved format
   return list.map(s => typeof s !== 'string' ? s : OLD_STUDY[s] ? newStudy(OLD_STUDY[s][0], { len: OLD_STUDY[s][1] }, OLD_STUDY[s][2] ? { ma: OLD_STUDY[s][2] } : null) : s.startsWith('ind:') ? newStudy(s) : null)
     .filter(s => s && (Studies.byId[s.t] || s.t.startsWith('ind:')));
 }
@@ -348,7 +348,7 @@ const studyLabel = (s, m) => { m = m || studyMeta(s.t); if (!m) return s.t.repla
   const v = m.inputs.map(i => s.params[i.k]).filter(x => x !== undefined && x !== ''); return m.short + (v.length ? ' ' + v.join(' ') : ''); };
 
 // ---- chart panel ----
-// ---- dark / light theme: CSS tokens on <body>, chart colours applied through the chart API ----
+// ---- theme (dark / light) ----
 const THEMES = { dark: { bg: '#000000', text: '#ff9e1b', grid: '#161616', border: '#333333', sep: '#ff9e1b', volUp: '#0d4a2c', volDn: '#5a1a18' },
   light: { bg: '#ffffff', text: '#3a4252', grid: '#eef0f3', border: '#c3c9d2', sep: '#b85c00', volUp: '#b5e3c8', volDn: '#f3c3c0' } };
 let themePref = 'dark';
@@ -365,9 +365,10 @@ function applyTheme() {
 function setTheme(t) { themePref = t; api.set('theme', t); applyTheme(); const sel = $('#sTheme'); if (sel) sel.value = t; }
 sysDark.addEventListener('change', () => { if (themePref === 'system') applyTheme(); });
 
-// ---- Custom UI (tab 7 > UI): cosmetic themes. Main (skin.js) filters every theme; this only applies the filtered result. ----
+// ---- custom UI themes ----
 let SKIN = { vars: {} };
-const CORE_TABS = ['desk', 'watch', 'gp', 'fin', 'news', 'lab', 'ind', 'set', 'help'];
+const CORE_TABS = ['desk', 'watch', 'gp', 'fin', 'lab', 'quant', 'news', 'set', 'help'];
+const tabOrder = () => SKIN.tabs ? [...SKIN.tabs.filter(t => CORE_TABS.includes(t)), ...CORE_TABS.filter(t => !SKIN.tabs.includes(t))] : CORE_TABS;
 const CU_COLORS = [['bg', 'Background'], ['panel2', 'Panels'], ['panel3', 'Inputs'], ['ink', 'Text'], ['mut', 'Muted text'], ['amb', 'Accent'], ['amb2', 'Accent 2'], ['yel', 'Highlight'],
   ['up', 'Up'], ['dn', 'Down'], ['blu', 'Links'], ['line', 'Borders'], ['hdr', 'Header bars'], ['hdrInk', 'Header text']];
 const styleEl = id => document.getElementById(id) || Object.assign(document.head.appendChild(document.createElement('style')), { id });
@@ -376,9 +377,9 @@ function applySkin() {
   for (const [k, v] of Object.entries(SKIN.vars || {})) b.setProperty('--' + k, v);
   b.fontFamily = SKIN.font || ''; b.fontSize = SKIN.fontSize ? SKIN.fontSize + 'px' : '';
   styleEl('skinBase').textContent = SKIN.radius != null ? `.btn,.card2,.dcard,input,select,textarea,#fkeys button,.panel,.dlgBox{border-radius:${SKIN.radius}px}` : '';
-  styleEl('skinCss').textContent = SKIN.css || '';   // already reduced to cosmetic properties by skin.js
+  styleEl('skinCss').textContent = SKIN.css || '';   // already filtered by skin.js
   const nav = $('#fkeys'), grow = nav.querySelector('.grow');
-  (SKIN.tabs || CORE_TABS).forEach(id => { const btn = nav.querySelector(`button[data-v="${id}"]`); if (btn) nav.insertBefore(btn, grow); });
+  tabOrder().forEach(id => { const btn = nav.querySelector(`button[data-v="${id}"]`); if (btn) nav.insertBefore(btn, grow); });
   allPanels('chart').forEach(c => c.retheme());
   if (view === 'ind' && !$('#cuUi').hidden) drawSkinUi();
 }
@@ -388,7 +389,7 @@ function drawSkinUi() {
   $('#cuColors').innerHTML = CU_COLORS.map(([k, n]) => `<label class="cuSw${SKIN.vars[k] ? ' set' : ''}"><input type="color" data-var="${k}" value="${hex6(cs.getPropertyValue('--' + k).trim())}"> ${esc(n)}${SKIN.vars[k] ? ` <button class="x" data-unset="${k}" title="Back to the default colour">↺</button>` : ''}</label>`).join('');
   $('#cuFont').value = SKIN.font || ''; $('#cuSize').value = SKIN.fontSize ? String(SKIN.fontSize) : ''; $('#cuRad').value = SKIN.radius != null ? SKIN.radius : 0; $('#cuRadV').textContent = SKIN.radius != null ? SKIN.radius + ' px' : 'default';
   const names = Object.fromEntries($$('#fkeys button[data-v]').map(b => [b.dataset.v, b.querySelector('i').textContent + ' ' + b.childNodes[1].textContent]));
-  const order = SKIN.tabs || CORE_TABS;
+  const order = tabOrder();
   $('#cuOrder').innerHTML = order.map((id, i) => `<div class="cuTab" data-t="${id}"><b>${esc(names[id] || id)}</b><span class="grow"></span><button class="btn sm" data-mv="-1" ${i ? '' : 'disabled'}>↑</button><button class="btn sm" data-mv="1" ${i < order.length - 1 ? '' : 'disabled'}>↓</button></div>`).join('')
     + (SKIN.tabs ? '<button class="btn sm" id="cuOrderReset">Default order</button>' : '');
 }
@@ -424,7 +425,7 @@ $('#cuReset').onclick = () => { if (confirm('Back to the standard colours, fonts
 (async () => { try { SKIN = await api.skin.get(); applySkin(); } catch (e) {} })();
 
 
-// "Same indicators on every chart": the last-edited chart's indicator list is copied to the others and used for new charts
+// same indicators on every chart
 function syncStudies(src) {
   const sig = JSON.stringify(src.p.studies); if (sig === syncStudies.sig) return; syncStudies.sig = sig;
   lastStudies = JSON.parse(sig); api.set('laststudies', lastStudies);
@@ -460,7 +461,7 @@ class ChartPanel {
     this.cs.priceScale().applyOptions({ scaleMargins: { top: 0.06, bottom: 0.2 } }); c.priceScale('vol').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
     c.subscribeCrosshairMove(x => this.legend(x));
     c.timeScale().subscribeVisibleLogicalRangeChange(r => { if (!r || this.restoring || !this.bars.length) return; p.vr = { from: r.from, to: r.to, n: this.bars.length }; clearTimeout(this.vrT); this.vrT = setTimeout(saveWs, 800); });
-    // keep the whole range in view while the area is resized (split, join, maximise), until the user scrolls or zooms the chart
+    // keep range on resize
     this.fit = true; this.box.addEventListener('wheel', () => { this.fit = false; }, { passive: true }); this.box.addEventListener('pointermove', ev => { if (ev.buttons === 1 && this.draw.tool() === 'cursor' && !/lg-/.test(document.body.className)) this.fit = false; });
     this.ro = new ResizeObserver(() => { if (this.fit && this.bars.length && this.box.clientWidth > 50) requestAnimationFrame(() => this.chart.timeScale().fitContent()); }); this.ro.observe(this.box);
     this.draw = Drawings.create();
@@ -479,14 +480,14 @@ class ChartPanel {
   }
   title() { return this.p.sym + ' · ' + (ivSec(this.p.iv) ? this.p.iv + ' live' : this.p.iv === 'auto' ? this.p.rg : this.p.iv + ' ' + this.p.rg); }
   setRange(r) { if (ivSec(this.p.iv)) this.p.iv = 'auto'; this.load(this.p.sym, r); }
-  restoreView(first) {   // first load after a restart: the zoom you left; otherwise show the whole series
+  restoreView(first) {   // restore zoom
     const v = this.p.vr; this.restoring = true;
     if (first && v && v.n === this.bars.length && v.to > v.from) { this.fit = false; const apply = () => this.chart.timeScale().setVisibleLogicalRange({ from: v.from, to: v.to }); apply(); setTimeout(apply, 150); }
     else { this.fit = true; this.chart.timeScale().fitContent(); }
     setTimeout(() => { this.restoring = false; }, 300);
   }
   stopLive() { if (this.live) { clearInterval(this.live.t); this.live = null; } }
-  startLive(sym, sec, tok) {   // seconds charts: no free source has second history, so candles are built from a price poll every second
+  startLive(sym, sec, tok) {   // second bars from polling
     const key = sym + '|' + this.p.iv, bars = tickStore[key]; let lastVol = null, busy = false, errs = 0;
     this.live = { t: setInterval(async () => {
       if (busy || document.hidden || tok !== this.tok) return; busy = true;
@@ -512,7 +513,7 @@ class ChartPanel {
     if (r.error) { this.q('.pinfo').textContent = r.error.slice(0, 160); return; }
     if (r.range && r.range !== p.rg) { p.rg = r.range; this.q('.prg').querySelectorAll('.rb').forEach(b => b.classList.toggle('on', b.dataset.r === p.rg)); relayoutTitles(); }
     this.tzFormat(exchOf(sym));
-    this.cs.priceScale().applyOptions({ autoScale: true });   // a new symbol or interval always rescales to its own prices
+    this.cs.priceScale().applyOptions({ autoScale: true });   // rescale on new symbol
     if (!wlQuotes[sym] && !wlStats[sym] && !/^\^|=X$/.test(sym)) api.quotes([sym]).then(async q => { const x = (q || [])[0]; if (x && !x.error) { wlQuotes[sym] = x; if (myCcy()) await ensureFx(myCcy(), [sym]); if (this.p.sym === sym) this.legend(); } }).catch(() => {});
     else if (myCcy()) ensureFx(myCcy(), [sym]).then(() => { if (this.p.sym === sym) this.legend(); });
     this.bars = r.bars; this.cs.setData(r.bars.map(({ time, open, high, low, close }) => ({ time, open, high, low, close })));
@@ -523,7 +524,7 @@ class ChartPanel {
     else { const l = r.bars[r.bars.length - 1]; this.q('.pinfo').textContent = 'last ' + f2(l.close) + ' · ' + r.bars.length + ' bars · ' + (r.iv || '') + ' ' + p.rg; say('Chart', Date.now()); }
     this.studies(); this.quote();
   }
-  tzFormat(code) {   // axis and crosshair times in the exchange's own time zone (New York for US symbols)
+  tzFormat(code) {   // exchange time zone
     const tz = EXCH[code || 'NY'] ? EXCH[code || 'NY'][1] : 'America/New_York'; if (this.tz === tz) return; this.tz = tz;
     const F = o => new Intl.DateTimeFormat('en-GB', { timeZone: tz, hourCycle: 'h23', ...o }), fy = F({ year: 'numeric' }), fm = F({ month: 'short' }), fd = F({ day: 'numeric' }), ft = F({ hour: '2-digit', minute: '2-digit' }), fs = F({ hour: '2-digit', minute: '2-digit', second: '2-digit' }), fx = F({ day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' });
     const d = t => new Date((typeof t === 'number' ? t : Date.UTC(t.year, t.month - 1, t.day) / 1000) * 1000);
@@ -540,7 +541,7 @@ class ChartPanel {
   addStudy(t, params) {
     const m = studyMeta(t); if (!m) return null;
     const s = newStudy(t, params), same = this.p.studies.filter(x => x.t === t).length;
-    if (same && m.plots.length === 1) s.colors[m.plots[0].k] = PAL[(PAL.indexOf(m.plots[0].c) + same + 1) % PAL.length];   // copies get a new colour
+    if (same && m.plots.length === 1) s.colors[m.plots[0].k] = PAL[(PAL.indexOf(m.plots[0].c) + same + 1) % PAL.length];   // new colour for copies
     this.p.studies.push(s); saveWs(); this.studies(); return s;
   }
   removeStudy(u) { this.p.studies = this.p.studies.filter(x => x.u !== u); saveWs(); this.studies(); }
@@ -552,7 +553,7 @@ class ChartPanel {
       const m = studyMeta(s.t); if (!m) return Promise.resolve({ error: 'This custom indicator was removed in IND' });
       if (s.hidden || !bars.length) return Promise.resolve(null);
       if (m.custom) return api.ind.compute(m.custom.id, bars, s.params).then(r => { if (r.error) return r;
-        const pal = m.custom.palettes || {}, series = {};   // "<name>_color" outputs pick each bar's colour from the @palette of <name>
+        const pal = m.custom.palettes || {}, series = {};   // per-bar palette colour
         Object.entries(r.series).forEach(([k, a]) => { const ci = pal[k] && r.series[k + '_color']; if (k.endsWith('_color') && pal[k.slice(0, -6)]) return;
           const byT = ci ? new Map(ci.map(d => [d.time, pal[k][Math.round(d.value)]])) : null; series[k] = byT ? a.map(d => ({ ...d, _c: byT.get(d.time) })) : a; });
         return { series, colors: {} }; });
@@ -573,7 +574,7 @@ class ChartPanel {
         const data = r.series[pl.k]; if (!data || s.off[pl.k]) return;
         const color = s.colors[pl.k] || pl.c, w = Math.max(1, Math.min(4, +s.width || 1)), ty = pl.type || 'line', base = { priceLineVisible: false, lastValueVisible: pane > 0, crosshairMarkerVisible: false, title: '' };
         let ser;
-        if (ty === 'vline') {   // full-height vertical lines (session separators): a histogram on its own hidden 0..1 scale
+        if (ty === 'vline') {   // vertical lines
           ser = this.chart.addSeries(LC.HistogramSeries, { ...base, color, lastValueVisible: false, priceScaleId: 'vl' + s.u, base: 0, autoscaleInfoProvider: () => ({ priceRange: { minValue: 0, maxValue: 1 } }) }, pane);
           ser.priceScale().applyOptions({ scaleMargins: { top: 0, bottom: 0 }, visible: false });
           ser.setData(data.map(d => d.value == null ? { time: d.time } : { time: d.time, value: 1 }));
@@ -583,17 +584,17 @@ class ChartPanel {
           ser.setData(data.map(d => d.value == null ? { time: d.time } : { time: d.time, value: d.value,
             color: s.colors[pl.k] ? color : d._c || (own ? own[d._i] : d.value >= 0 ? '#26a69a' : '#ff5252') }));
         } else {
-          const own = !s.colors[pl.k] && r.colors && r.colors[pl.k];   // per-bar colours (trend-coloured lines, squeeze dots)
+          const own = !s.colors[pl.k] && r.colors && r.colors[pl.k];   // per-bar colours
           ser = this.chart.addSeries(LC.LineSeries, { ...base, color, lineWidth: w, lineType: ty === 'step' ? 1 : 0, lineVisible: ty !== 'dots', pointMarkersVisible: ty === 'dots', pointMarkersRadius: ty === 'dots' ? 1 + w / 2 : undefined }, pane);
           ser.setData(data.map(d => d.value == null ? { time: d.time } : own && own[d._i] ? { time: d.time, value: d.value, color: own[d._i] } : { time: d.time, value: d.value }));
         }
         if (i === 0 && pane > 0) (m.levels || []).forEach(v => ser.createPriceLine({ price: v, color: '#555', lineWidth: 1, lineStyle: 2, axisLabelVisible: false, title: '' }));
         this.ind.push({ s: ser, u: s.u, label: studyLabel(s, m) + (plots.length > 1 ? ' ' + (pl.name || pl.k) : ''), color }); if (!host) host = ser;
       });
-      // horizontal levels (support / resistance, auto fib, gaps) and signal markers returned by a study
+      // levels and markers
       if ((r.lines && r.lines.length || r.markers && r.markers.length) && !host) {
         host = this.chart.addSeries(LC.LineSeries, { color: 'rgba(0,0,0,0)', lineVisible: false, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false }, pane);
-        host.setData(bars.map(b => ({ time: b.time, value: b.close })));   // price lines only draw on a series that has data
+        host.setData(bars.map(b => ({ time: b.time, value: b.close })));   // price lines need data
         this.ind.push({ s: host, u: s.u, label: studyLabel(s, m), color: 'transparent', hidden: true });
       }
       (r.lines || []).forEach(l => host.createPriceLine({ price: l.p, color: l.c || '#888', lineWidth: Math.max(1, Math.min(4, l.w || 1)), lineStyle: l.s ? 2 : 0, axisLabelVisible: !!l.t, title: l.t || '' }));
@@ -630,7 +631,7 @@ class ChartPanel {
       `<button class="btn" data-a="dup" title="Clone">Clone</button><button class="btn" data-a="front" title="Bring to front">▲</button><button class="btn" data-a="back" title="Send to back">▼</button>` +
       `<button class="btn" data-a="lock">${d.lock ? 'Unlock' : 'Lock'}</button><button class="btn" data-a="del">Delete</button>`;
   }
-  async quote() {   // best bid/ask for the SELL/BUY box, and nudge the last candle with the latest price
+  async quote() {   // bid/ask box + last price
     const r = await api.book(this.p.sym, { depth: false }); if (!r || r.error || r.symbol !== this.p.sym) return;
     this.qd = r; const b = this.bars[this.bars.length - 1], px = r.last;
     if (!this.live && b && px != null && Number.isFinite(px) && Math.abs(px / b.close - 1) < 0.2) { b.close = px; b.high = Math.max(b.high, px); b.low = Math.min(b.low, px); this.cs.update({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close }); }
@@ -676,7 +677,7 @@ class BookPanel {
       <div class="qb buy"><small>ASK</small><b>${f2(r.ask)}</b><i>${r.askSize ? 'x ' + vol(r.askSize) : ''}</i></div>
       <div class="bmid"><small>LAST</small><b>${f2(r.last)}</b><small>${esc(r.state || '')}</small></div>` +
       (r.error ? `<div class="dn small">${esc(r.error)}</div>` : '') + (r.depthError ? `<div class="dn small">${esc(r.depthError)}</div>` : '') + (r.depthNote ? `<div class="mut small">${esc(r.depthNote)}</div>` : '');
-    // depth table (only when a depth feed answered)
+    // depth table
     const L = r.levels;
     if (L && (L.bids.length || L.asks.length)) {
       const n = Math.max(L.bids.length, L.asks.length), mx = Math.max(1, ...L.bids.map(x => x[1]), ...L.asks.map(x => x[1]));
@@ -686,7 +687,7 @@ class BookPanel {
         h += `<tr><td class="mut">${esc(b[2] || '')}</td><td class="bsz" style="--w:${(b[1] || 0) / mx * 100}%">${b[1] != null ? vol(b[1]) : ''}</td><td class="up">${b[0] != null ? f2(b[0]) : ''}</td><td class="dn">${a[0] != null ? f2(a[0]) : ''}</td><td class="asz" style="--w:${(a[1] || 0) / mx * 100}%">${a[1] != null ? vol(a[1]) : ''}</td><td class="mut">${esc(a[2] || '')}</td></tr>`; }
       this.q('.bdepth').innerHTML = h + '</tbody></table>';
     } else this.q('.bdepth').innerHTML = '';
-    // price ladder with volume at price
+    // price ladder
     if (mid == null) return;
     const step = this.p.step === 'auto' ? niceStep(mid) : +this.p.step, rows = 25, c0 = Math.round(mid / step) * step;
     const prices = []; for (let i = Math.floor(rows / 2); i >= -Math.floor(rows / 2); i--) prices.push(+(c0 + i * step).toFixed(4));
@@ -708,10 +709,10 @@ class MonitorPanel {
   refresh() {} destroy() {}
 }
 
-// ---- watchlist panel (TradingView-style: named lists, sortable, click or arrow keys to chart) ----
-let WL = null;   // { lists: [{ id, name, syms: [] }] } shared by every watchlist panel
+// ---- watchlist panel ----
+let WL = null;   // shared lists
 const wlQuotes = {};
-// watchlists.json: { "monitor": <list id>, "lists": [{ "id", "name", "syms": [...] }] }. Also accepts hand-written lists with "symbols" and no id.
+// watchlists.json format
 function normWL(w) {
   if (!w || !Array.isArray(w.lists)) return null;
   const lists = w.lists.filter(l => l && typeof l === 'object').map(l => ({ id: String(l.id || uid('l')), name: String(l.name || 'List').slice(0, 40),
@@ -722,7 +723,7 @@ function normWL(w) {
 }
 async function loadWL() {
   const raw = await api.get('watchlists'); let w = normWL(raw);
-  if (!w || !raw.monitor) {   // first run, or a file from before v1.19: fold the old MON list (watchlist.json) into the list MON showed
+  if (!w || !raw.monitor) {   // migrate old MON list
     const old = monCfg.linked ? null : await api.get('watchlist');
     if (!w) w = normWL({ lists: [{ name: 'Main', syms: Array.isArray(old) && old.length ? old : ['SPY', 'QQQ', 'DIA', 'IWM', 'NVDA', 'MSFT', 'AAPL', 'AMZN'] }, { name: 'Indices & macro', syms: ['SPY', 'QQQ', 'DIA', 'IWM', '^VIX', 'TLT', 'GLD', 'USO'] }] });
     else { const m = w.lists.find(l => l.id === monCfg.list) || w.lists[0]; w.monitor = m.id; if (Array.isArray(old)) m.syms = [...new Set([...old, ...m.syms])]; }
@@ -730,7 +731,7 @@ async function loadWL() {
   WL = w; if (JSON.stringify(raw) !== JSON.stringify(WL)) api.set('watchlists', WL);
   watch = monList().syms.slice(); drawMonList(); drawWatch([]); refreshWatch();
 }
-api.onWlChanged && api.onWlChanged(async () => {   // watchlists.json edited outside the app
+api.onWlChanged && api.onWlChanged(async () => {   // file edited outside the app
   const w = normWL(await api.get('watchlists')); if (!w) return status('watchlists.json could not be read; keeping the lists in the app');
   WL = w; api.set('watchlists', WL); allPanels('watchlist').forEach(x => { if (!WL.lists.some(l => l.id === x.p.list)) x.p.list = WL.lists[0].id; x.draw(); x.refresh(); }); syncMon(); status('Watchlists reloaded from watchlists.json');
 });
@@ -738,7 +739,7 @@ $('#monFile').onclick = () => api.wlOpenFile();
 const saveWL = () => { api.set('watchlists', WL); allPanels('watchlist').forEach(w => w.draw()); syncMon(); };
 const wlStats = {}, wlFx = {}, wlStatsBusy = new Set();
 const CCYS = ['USD', 'EUR', 'GBP', 'JPY', 'CNY', 'HKD', 'CAD', 'AUD', 'CHF', 'INR', 'SGD', 'KRW', 'TWD', 'MYR', 'THB'];
-// [key, header, tooltip, kind] kind: money (converted), pct, num, int, big, greek
+// columns: [key, header, tooltip, kind]
 const WL_COLS = [
   ['price', 'Last', "Last price in the stock's own currency", 'money'], ['fx', 'Last in', 'Last price converted at the latest FX rate; pick the currency in the column header', 'money'], ['chg', 'Chg', 'Change today', 'money'], ['pct', 'Chg%', 'Change today %', 'pct'], ['vol', 'Vol', 'Volume today', 'big'],
   ['mcap', 'Mkt cap', 'Market capitalisation', 'bigm'], ['pe', 'P/E', 'Price / trailing 12-month earnings', 'num'], ['fpe', 'Fwd P/E', 'Price / next-year earnings estimate', 'num'],
@@ -750,9 +751,9 @@ const WL_COLS = [
   ['hi52', '52W hi', '52-week high', 'money'], ['lo52', '52W lo', '52-week low', 'money'], ['ytd', 'YTD %', 'Price change since the first trading day of this year', 'pct'], ['short', 'Short %', 'Short interest, % of float', 'pct0']
 ];
 const WL_DEF = ['price', 'fx', 'chg', 'pct', 'mcap', 'pe', 'eps', 'beta', 'alpha', 'delta', 'theta'];
-const ccyOf = s => { const c = (wlStats[s] || {}).currency || (wlQuotes[s] || {}).currency || 'USD'; return c === 'GBp' || c === 'GBX' ? 'GBX' : c.toUpperCase(); };   // London quotes in pence
-// primary currency (profile): prices keep their own currency and also show the converted value
-const myCcy = () => PROF.ccy || '';   // empty until the profile is set: no conversion
+const ccyOf = s => { const c = (wlStats[s] || {}).currency || (wlQuotes[s] || {}).currency || 'USD'; return c === 'GBp' || c === 'GBX' ? 'GBX' : c.toUpperCase(); };   // pence
+// primary currency
+const myCcy = () => PROF.ccy || '';   // no profile: no conversion
 function inMine(s, v) { const to = myCcy(), from = ccyOf(s); if (!to || v == null || /^\^|=X$/.test(s) || from === to) return null; const r = wlRate(from, to); return r == null ? null : v * r; }
 const pxMine = (s, v) => { if (v == null) return '-'; const c = inMine(s, v); return c == null ? f2(v) : `${f2(c)} <span class="mut small" title="Original price">${f2(v)} ${esc(ccyOf(s))}</span>`; };
 function wlRate(from, to) { if (from === 'GBp' || from === 'GBX') return (wlRate('GBP', to) || 0) / 100; return from === to ? 1 : wlFx[from + to]; }
@@ -765,12 +766,12 @@ async function ensureStats(syms, force) {
   need.forEach(s => wlStatsBusy.add(s)); const r = await api.stats(need); need.forEach(s => wlStatsBusy.delete(s));
   (Array.isArray(r) ? r : []).forEach(x => { wlStats[x.symbol] = x; }); allPanels('watchlist').forEach(w => w.draw()); drawWatch(lastQuotes);
 }
-function wlVal(s, k, ccy) {   // values in the stock's own currency; 'fx' = last price converted to ccy
+function wlVal(s, k, ccy) {   // column value
   const q = wlQuotes[s] || {}, st = wlStats[s] || {};
   if (k === 'fx') { const v = q.price ?? st.price, r = wlRate(ccyOf(s), ccy); return v == null || r == null ? null : v * r; }
   return k === 'price' || k === 'chg' || k === 'pct' || k === 'vol' ? (q[k] ?? st[k]) : st[k];
 }
-const wlDoc = (name, syms) => ({ name, symbols: syms.slice() });   // export format: the same shape watchlists.json and Import read
+const wlDoc = (name, syms) => ({ name, symbols: syms.slice() });   // export
 function wlFmt(v, kind) {
   if (v == null || !Number.isFinite(+v)) return '-';
   if (kind === 'pct') return sgn(v) + v.toFixed(2) + '%'; if (kind === 'pct0' || kind === 'hv') return (kind === 'hv' ? v * 100 : v).toFixed(1) + '%';
@@ -794,7 +795,7 @@ class WatchPanel {
     this.q('.wlAdd').onkeydown = ev => { if (ev.key === 'Enter') { ev.stopPropagation(); this.add(ev.target.value); ev.target.value = ''; } };
     this.q('thead').onclick = ev => { const k = ev.target.dataset.k; if (!k) return; const s = this.p.sort; this.p.sort = s && s.k === k ? (s.d > 0 ? { k, d: -1 } : null) : { k, d: 1 }; saveWs(); this.draw(); };
     this.q('tbody').onclick = ev => { const r = ev.target.dataset.r; if (r) return this.remove(r); const tr = ev.target.closest('tr[data-s]'); if (tr) this.pick(tr.dataset.s); };
-    e.tabIndex = 0;   // arrow keys walk the list and chart each symbol, like TradingView
+    e.tabIndex = 0;   // arrow keys
     e.onkeydown = ev => { if (/INPUT|SELECT/.test(ev.target.tagName) || !['ArrowUp', 'ArrowDown'].includes(ev.key)) return; ev.preventDefault();
       const rows = this.rows(), i = rows.indexOf(this.sel); const n = rows[Math.max(0, Math.min(rows.length - 1, i + (ev.key === 'ArrowDown' ? 1 : -1)))]; if (n) this.pick(n); };
     this.draw(); this.refresh();
@@ -846,8 +847,8 @@ class WatchPanel {
   destroy() {}
 }
 
-// ---- news panel: live headlines (Bloomberg, Yahoo Finance, CNBC, MarketWatch, WSJ, FT, Nasdaq, Google News, SEC filings; in Chinese mode Yahoo 財經, RTHK, Ming Pao, Google 新聞, WSJ/NYT/BBC/FT Chinese editions first) ----
-const newsCache = {};   // symbol ('' = market) -> latest items, also used for the AI desk context
+// ---- news panel ----
+const newsCache = {};   // news cache
 let NEWS_SOURCES = [];
 class NewsPanel {
   constructor(p) {
@@ -868,7 +869,7 @@ class NewsPanel {
       if (ev.target.dataset.ai) { go('gp'); const ai = focusPanel('ai'); return ai.inst.send(`What could this headline mean for ${this.sym() || 'the market'}? "${it.title}" (${it.src}${it.via ? ' via ' + it.via : ''}, ${it.time ? new Date(it.time).toISOString() : 'time unknown'}). ${it.summary || ''}`); }
       api.openUrl(it.url); this.seen.add(it.url); a.classList.remove('new'); };
     this.load(true);
-    this.timer = setInterval(() => { if (!document.hidden && this.el.offsetParent && !this.busy) this.load(); }, 15000);   // near real time: feeds are polled every 15 s while visible
+    this.timer = setInterval(() => { if (!document.hidden && this.el.offsetParent && !this.busy) this.load(); }, 15000);   // poll every 15 s
   }
   sym() { return this.p.mode === 'top' ? '' : this.p.mode === 'sym' ? this.p.sym : (activeChart() ? activeChart().p.sym : 'SPY'); }
   title() { const s = this.sym(); return 'NEWS' + (s ? ' ' + s : ' · TOP'); }
@@ -878,7 +879,7 @@ class NewsPanel {
     this.q('.nInfo').textContent = 'Loading…';
     this.busy = true; const r = await api.news({ sym, off: this.p.off }); this.busy = false; if (tok !== this.tok) return;
     if (!r || r.error) { this.q('.nInfo').textContent = (r && r.error) || 'News failed'; return; }
-    if (r.sources) { const ch = NEWS_SOURCES.map(s => s.id).join() !== r.sources.map(s => s.id).join(); NEWS_SOURCES = r.sources; if (ch && this.q('.nSrc').style.display === 'flex') this.drawSrc(); }   // the list depends on the display language
+    if (r.sources) { const ch = NEWS_SOURCES.map(s => s.id).join() !== r.sources.map(s => s.id).join(); NEWS_SOURCES = r.sources; if (ch && this.q('.nSrc').style.display === 'flex') this.drawSrc(); }   // sources by language
     const fresh = this.first ? new Set() : new Set(r.items.filter(i => !this.items.some(o => o.url === i.url)).map(i => i.url));
     this.first = false; this.items = r.items; this.fresh = fresh; newsCache[sym] = r.items;
     this.q('.nInfo').textContent = `● LIVE · ${r.items.length} headlines · updated ${fmtLocal(Date.now())}` + (fresh.size ? ` · ${fresh.size} new` : '') + (r.errors.length ? ` · ${r.errors.length} source(s) failed` : '');
@@ -888,7 +889,7 @@ class NewsPanel {
     const q = this.q('.nQ').value.trim().toLowerCase(), day = new Date().toDateString();
     const when = t => { if (!t) return ''; const d = new Date(t); return d.toDateString() === day ? d.toTimeString().slice(0, 5) : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); };
     const rows = this.items.map((it, i) => ({ it, i })).filter(({ it }) => !q || (it.title + ' ' + it.src + ' ' + it.via).toLowerCase().includes(q));
-    const zhFirst = rows.some(x => x.it.lang === 'zh'), cut = zhFirst ? rows.findIndex(x => x.it.lang !== 'zh') : -1;   // Chinese mode: Chinese headlines first, then a divider and the English ones
+    const zhFirst = rows.some(x => x.it.lang === 'zh'), cut = zhFirst ? rows.findIndex(x => x.it.lang !== 'zh') : -1;   // Chinese first, then English
     this.q('.nList').innerHTML = rows.length ? rows.map(({ it, i }, k) => (k === cut ? '<div class="nDiv mut small">English sources</div>' : '') + `<div class="nRow${this.fresh && this.fresh.has(it.url) && !this.seen.has(it.url) ? ' new' : ''}" data-u="1" data-i="${i}" title="${esc(it.summary || it.title)}">` +
       `<span class="nT">${esc(when(it.time))}</span><span class="nS s-${esc(it.srcId)}">${esc(it.src)}</span><span class="nH">${esc(it.title)}${it.via ? ` <i>· ${esc(it.via)}</i>` : ''}</span><button class="x" data-ai="1" title="Ask the AI assistant about this headline">AI</button></div>`).join('')
       : `<div class="mut small pad">${this.items.length ? 'No headline matches the filter.' : 'No headlines yet.'}</div>`;
@@ -898,7 +899,7 @@ class NewsPanel {
   destroy() { clearInterval(this.timer); }
 }
 
-// display language changed: headlines, company names and FIN come from language-specific sources
+// language changed: reload
 window.addEventListener('eqlang', () => {
   allPanels('news').forEach(n => n.load(true)); if (typeof newsScr !== 'undefined' && newsScr) newsScr.load(true); drawDeskHome(); loadDeskHome();
   const syms = Object.keys(wlStats); syms.forEach(k => delete wlStats[k]); if (syms.length) ensureStats(syms, true);
@@ -906,7 +907,7 @@ window.addEventListener('eqlang', () => {
 });
 
 // ---- AI assistant panel ----
-const aiLevels = {};   // sym -> {entry,target,stop} from an AI idea, drawn as dotted price lines (display only)
+const aiLevels = {};   // AI idea levels
 function showAiLevels(lv, off) { if (off) delete aiLevels[lv.sym]; else aiLevels[lv.sym] = lv; allPanels('chart').forEach(c => { if (c.p.sym === lv.sym) c.drawLevels(); });
   if (!off && !allPanels('chart').some(c => c.p.sym === lv.sym)) (activeChart() || focusPanel('chart').inst).load(lv.sym); }
 const aiRuns = {};
@@ -938,7 +939,7 @@ class AIPanel {
       : '<div class="mut small">Research assistant. It sees what the active chart shows when Desk context is on. Research, not personalised financial advice.</div>';
     m.scrollTop = m.scrollHeight;
   }
-  appLines() {   // what is open in the app, so models without tool support still see it
+  appLines() {   // app context for the AI
     const L = [], charts = allPanels('chart').map(c => `${c.p.sym} ${c.p.iv === 'auto' ? c.p.rg : c.p.iv + ' ' + c.p.rg}${c === activeChart() ? ' (active)' : ''}`);
     if (PROF.done) L.push(`User: ${PROF.name || 'unnamed'}${PROF.loc ? ', ' + PROF.loc : ''}; time zone ${localTz}; primary market ${PROF.market && EXCH[PROF.market] ? EXCH[PROF.market][0] : 'US'}; primary currency ${myCcy() || 'not set'}`);
     if (charts.length) L.push('Open charts: ' + charts.join('; '));
@@ -1015,7 +1016,7 @@ ${rows.join('\n')}
   refresh() { this.q('.aiwho').textContent = this.who(); } destroy() {}
 }
 
-// ---- workspace (dockable panels) ----
+// ---- workspace (panels) ----
 const KINDS = { chart: ChartPanel, book: BookPanel, monitor: MonitorPanel, watchlist: WatchPanel, news: NewsPanel, ai: AIPanel };
 let ws = null, panels = {}, lastChart = null, saveWsT = null, wsReady = false;
 const allPanels = kind => Object.values(panels).filter(x => x.p.kind === kind).map(x => x.inst);
@@ -1024,7 +1025,7 @@ function makePanel(p) { p.id = p.id || uid('p'); const inst = new KINDS[p.kind](
 function saveWs() { if (!wsReady) return; clearTimeout(saveWsT); saveWsT = setTimeout(() => api.set('workspace', { panels: Object.values(panels).map(x => x.p), layout: ws.get() }), 500); }
 function relayoutTitles() { if (!ws) return; clearTimeout(relayoutTitles.t); relayoutTitles.t = setTimeout(() => ws.set(ws.get()), 50); }
 function addPanel(kind, props, nextTo, zone) { const x = makePanel({ kind, ...(props || {}) }); ws.add(x.p.id, nextTo, zone); saveWs(); return x; }
-function focusPanel(kind) {   // the active panel of that kind, else the most recent one, else a new one beside the active panel
+function focusPanel(kind) {   // find or open a panel
   ensureWorkspace(); const a = ws.active();
   if (a && panels[a] && panels[a].p.kind === kind) return panels[a];
   const ex = ws.ids().map(id => panels[id]).filter(x => x && x.p.kind === kind);
@@ -1032,7 +1033,7 @@ function focusPanel(kind) {   // the active panel of that kind, else the most re
   if (ex.length) { ws.activate(ex[ex.length - 1].p.id); return ex[ex.length - 1]; }
   return addPanel(kind, kind === 'book' && activeChart() ? { sym: activeChart().p.sym } : {}, a, kind === 'chart' ? 'center' : 'right');
 }
-// a copy of a panel for a new area: same symbol, range and indicators (with fresh ids), fresh AI chat
+// copy a panel
 function cloneProps(s) { const c = JSON.parse(JSON.stringify(s)); delete c.id; if (c.kind === 'ai') c.msgs = [];
   if (Array.isArray(c.studies)) c.studies = c.studies.map(x => typeof x === 'object' ? { ...x, u: uid('s') } : x); return c; }
 function destroyPanel(id) { const x = panels[id]; if (!x) return; x.inst.destroy(); delete panels[id]; if (lastChart === id) lastChart = null; }
@@ -1081,7 +1082,7 @@ $$('[data-add]').forEach(b => b.onclick = () => { ensureWorkspace(); const k = b
 
 function markTool(t) { const grp = Drawings.GROUPS.find(g => g[2].includes(t)); if (grp && t !== 'cursor' && grp[0] !== 'cursor' && groupCur[grp[0]] !== t) { groupCur[grp[0]] = t; buildTools(); }
   $$('#tools [data-t]').forEach(b => b.classList.toggle('on', b.dataset.t === t)); }
-// drawing toolbar (acts on the active chart): TradingView-style groups, each remembers its last tool; the ▸ opens the group
+// drawing toolbar
 const withChart = f => { const c = activeChart(); if (c) f(c); };
 const GICON = {
   cursor: '<path d="M6 3l12 9-5 1 3 6-2 1-3-6-4 4z"/>', lines: '<path d="M4 19L20 5"/><circle cx="4" cy="19" r="2"/><circle cx="20" cy="5" r="2"/>',
@@ -1114,7 +1115,7 @@ $('#tools').onclick = e => {
   if (b.id === 'tClear') withChart(c => { if (c.draw.count() && confirm('Remove all drawings on ' + c.p.sym + '?')) c.draw.clear(); });
 };
 
-// ---- indicator library dialog (TradingView-style) ----
+// ---- indicator library ----
 const IndDlg = (() => {
   const D = $('#indDlg'); let chart = null, cat = 'All';
   const items = () => [...Studies.list.map(d => ({ t: d.id, name: d.name, short: d.short, cat: d.cat })),
@@ -1134,7 +1135,7 @@ const IndDlg = (() => {
       if (x.u) return `<div class="it" data-u="${esc(x.u)}"><span class="nm">${esc(x.name)}</span><span class="mut">${esc(x.cat)}</span><button class="x" data-a="cfg" title="Settings">⚙</button><button class="x" data-a="rm" title="Remove">✕</button></div>`;
       const n = on.filter(s => s.t === x.t).length;
       return `<div class="it" data-t="${esc(x.t)}" title="Click to add (click again for another copy)"><span class="nm">${esc(x.name)}</span>${x.short && x.short !== x.name ? `<span class="mut">${esc(x.short)}</span>` : ''}<span class="sp"></span>${n ? `<span class="cnt">${n} on chart</span>` : ''}<span class="mut">${esc(x.cat)}</span></div>`;
-    }).join('') : `<div class="mut small pad">${cat === 'Custom' ? 'No custom indicators yet. Import a .py or .c file in CUSTOM (Ctrl+7).' : cat === 'On this chart' ? 'Nothing on this chart yet.' : 'No match.'}</div>`;
+    }).join('') : `<div class="mut small pad">${cat === 'Custom' ? 'No custom indicators yet. Import a .py or .c file in SET &gt; Custom (Ctrl+Shift+8).' : cat === 'On this chart' ? 'Nothing on this chart yet.' : 'No match.'}</div>`;
     $('#idTarget').textContent = chart ? chart.p.sym + ' · ' + on.length + ' on chart' : 'no chart';
   }
   function add(t) { if (!chart) return; const s = chart.addStudy(t); if (s) status('Added ' + studyLabel(s) + ' to ' + chart.p.sym); draw(); }
@@ -1151,7 +1152,7 @@ const IndDlg = (() => {
   return { open(c) { chart = c; D.hidden = false; $('#idSearch').value = ''; draw(); $('#idSearch').focus(); }, close, draw, isOpen: () => !D.hidden };
 })();
 
-// ---- study settings dialog: Inputs / Style, live preview, Defaults / Cancel / OK ----
+// ---- study settings dialog ----
 const StudyDlg = (() => {
   const D = $('#stDlg'); let chart = null, s = null, backup = null, tab = 'in', t = null;
   function body() {
@@ -1183,7 +1184,7 @@ const StudyDlg = (() => {
   return { open(c, st) { chart = c; s = st; backup = JSON.parse(JSON.stringify(st)); tab = 'in'; D.hidden = false; draw(); const f = $('#stBody input,#stBody select'); if (f) f.focus(); }, cancel, isOpen: () => !D.hidden };
 })();
 
-// ---- indicators screen ----
+// ---- custom indicators ----
 async function loadInd(msg, ok) {
   indDefs = await api.ind.list();
   $('#it tbody').innerHTML = indDefs.length ? indDefs.map(d => `<tr data-id="${esc(d.id)}"><td><input type="checkbox" data-k="enabled" ${d.enabled ? 'checked' : ''}></td><td title="${esc(d.origin)}">${esc(d.name)}</td><td>${d.lang === 'c' ? 'C' : 'Python'}</td>
@@ -1231,7 +1232,7 @@ async function showSettings() {
   aiFields(); depthFields();
 }
 const OAI_IDS = () => S.providers.map(x => x[0]).filter(k => k !== 'claude' && k !== 'ollama');
-function aiFields() {   // show the fields of the chosen AI provider
+function aiFields() {   // AI provider fields
   const pv = $('#sAi').value, oai = OAI_IDS().includes(pv);
   $('#aiClaude').hidden = pv !== 'claude'; $('#aiOllama').hidden = pv !== 'ollama'; $('#aiOai').hidden = !oai; if (pv === 'ollama') refreshLocal(); if (!oai) return;
   const local = pv === 'lmstudio' || pv === 'custom', name = (S.providers.find(x => x[0] === pv) || [, pv])[1];
@@ -1261,10 +1262,10 @@ $('#themeKey').onclick = () => setTheme(themeName() === 'light' ? 'dark' : 'ligh
 $('#sSave').onclick = () => saveSettings();
 ['#sKey', '#sAKey', '#sOKey', '#sRef', '#sFuH', '#sFuP', '#sTgId', '#sSchCb', ...[...document.querySelectorAll('[data-secret]')].map(x => x)].forEach(x => { (typeof x === 'string' ? $(x) : x).onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); saveSettings(); } }; });
 ['#sOModel', '#sOUrl'].forEach(x => { $(x).onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); saveSettings(); } }; });
-const testKey = async (field, k, label) => {   // saves a freshly pasted key first, then checks it with the service
+const testKey = async (field, k, label) => {   // save then test key
   if ($(field).value && !(await saveSettings())) return; smsg('Testing ' + label + '…'); const r = await api.testKey(k); smsg(r.msg, r.ok ? 'ok' : 'err'); };
 $('#sKeyTest').onclick = () => testKey('#sKey', 'fmpKey', 'FMP');
-// Broker and exchange-feed keys: [data-secret] inputs, [data-test] buttons and [data-clear] buttons. Saving first so a freshly pasted key is what gets tested.
+// broker / feed keys
 const TEST_NAME = { futu: 'Futu OpenD', longbridge: 'Longbridge (the first test downloads its 70 MB module, once)', tiger: 'Tiger', schwab: 'Schwab', tvKey: 'Nasdaq TotalView (Databento)', obKey: 'NYSE OpenBook (Databento)' };
 document.querySelectorAll('[data-test]').forEach(b => { b.onclick = async () => { if (!(await saveSettings())) return; const k = b.dataset.test; smsg('Testing ' + TEST_NAME[k] + '…'); const r = await api.testKey(k); smsg(r.msg, r.ok ? 'ok' : 'err'); }; });
 document.querySelectorAll('[data-clear]').forEach(b => { b.onclick = async () => { const ks = b.dataset.clear.split(','); if (!confirm('Remove the saved ' + ks.length + ' key(s) from this PC?')) return; if (await saveSettings(Object.fromEntries(ks.map(k => [k, ''])))) smsg('Removed'); }; });
@@ -1274,7 +1275,7 @@ $('#sSchOut').onclick = async () => { S = await api.schwab.signOut(); await show
 $('#sClear').onclick = async () => { if (await saveSettings({ fmpKey: '' })) smsg('FMP key removed'); };
 $('#sAClear').onclick = async () => { if (await saveSettings({ anthropicKey: '' })) smsg('Anthropic key removed'); };
 $('#sOClear').onclick = async () => { const pv = $('#sAi').value; if (await saveSettings({ ['ai_' + pv]: '' })) smsg('Key removed'); };
-// ---- paid AI cost warning: shown before each message to a paid provider, unless switched off for that provider ----
+// ---- paid AI cost warning ----
 const FREE_AI = ['ollama', 'lmstudio'];
 let costPrefs = null;
 function aiModelName() {
@@ -1304,13 +1305,13 @@ async function costWarning(chars) {
   return ok;
 }
 $('#sCostReset').onclick = async () => { costPrefs = { off: {} }; await api.set('aiwarn', costPrefs); smsg('The paid-AI cost warning will show again', 'ok'); };
-// ---- local models: Ollama + Gemma 4 / gpt-oss downloads ----
+// ---- local models (Ollama) ----
 let lmState = null; const lmProg = {};
 const gb = n => n >= 1e9 ? (n / 1e9).toFixed(1) + ' GB' : (n / 1e6).toFixed(0) + ' MB';
-// "gemma4:latest" is the same download as gemma4:e4b, and "gpt-oss:latest" the same as gpt-oss:20b
+// same downloads
 const catOf = id => ((lmState && lmState.catalog) || []).find(m => m.id === id);
 const hasModel = (id, names) => { const m = catOf(id); return names.includes(id) || !!(m && m.dflt && names.includes(m.fam + ':latest')); };
-function resolvedLocal() {   // the installed model the assistant will actually use (same rule as the main process)
+function resolvedLocal() {   // model in use
   const cur = S.ollamaModel || 'gemma4', names = (lmState && lmState.names) || [];
   const n = names.find(x => x === cur) || names.find(x => x === cur + ':latest') || names.find(x => x.startsWith(cur.includes(':') ? cur : cur + ':'));
   if (!n) return null; const m = ((lmState && lmState.catalog) || []).find(c => c.dflt && n === c.fam + ':latest'); return m ? m.id : n;
@@ -1361,7 +1362,7 @@ $('#sOlist').onclick = refreshLocal;
 $('#sOList').onclick = async () => { const pv = $('#sAi').value; if (($('#sOKey').value || !$('#sOUrl').hidden) && !(await saveSettings())) return; smsg('Listing models…');
   const r = await api.ai.models(pv); if (r.error) return smsg(r.error, 'err'); $('#oaiModels').innerHTML = r.map(m => `<option value="${esc(m)}">`).join(''); smsg(r.length + ' model(s); click the Model box to pick one'); };
 
-// ---- keys (HELP screen) ----
+// ---- keys (HELP) ----
 function drawKeys(msg) {
   let g = '';
   $('#kt tbody').innerHTML = Keys.actions.map(([id, grp, label]) => { const h = grp !== g ? `<tr class="grp"><td colspan="3">${esc(grp)}</td></tr>` : ''; g = grp;
@@ -1375,7 +1376,7 @@ $('#kt').onclick = e => {
   if (!k) return; e.target.textContent = 'Press keys… (Esc cancels)'; e.target.classList.add('cap');
   Keys.capture(c => { if (!c) return drawKeys(); const clash = Keys.set(k, c); api.set('keys', Keys.overrides()); drawKeys(clash ? `${Keys.pretty(c)} was moved from "${Keys.actions.find(a => a[0] === clash)[2]}", which is now unbound.` : 'Saved'); });
 };
-// HELP search: filters the key table and the command / mouse docs as you type
+// HELP search
 function filterHelp() {
   const q = $('#helpQ').value.trim().toLowerCase(), words = q.split(/\s+/).filter(Boolean); let n = 0;
   const hit = tr => { const ok = !words.length || words.every(w => tr.textContent.toLowerCase().includes(w)); tr.hidden = !ok; if (ok) n++; return ok; };
@@ -1400,7 +1401,7 @@ Keys.on({
     if (view === 'gp') { const ch = activeChart(); if (ch && ch.draw.cancel()) return; } return false; },
   menu: () => { const v = viewHist.pop(); if (v) go(v, true); },
   pageFwd: inGp(() => ws.next(1)), pageBack: inGp(() => ws.next(-1)), cmd: () => $('#cmd').focus(),
-  vNews: () => go('news'), vFin: () => go('fin'), theme: () => setTheme(themeName() === 'light' ? 'dark' : 'light'), vDesk: () => go('desk'), vMon: () => go('watch'), vGp: () => go('gp'), vInd: () => go('ind'), vSet: () => go('set'), vHelp: () => go('help'), vLab: () => go('lab'),
+  vNews: () => go('news'), vFin: () => go('fin'), theme: () => setTheme(themeName() === 'light' ? 'dark' : 'light'), vDesk: () => go('desk'), vMon: () => go('watch'), vGp: () => go('gp'), vInd: () => go('ind'), vSet: () => go('set'), vHelp: () => go('help'), vLab: () => go('lab'), vQuant: () => go('quant'),
   addChart: () => { go('gp'); addPanel('chart', { sym: activeChart() ? activeChart().p.sym : 'SPY' }, ws.active(), 'right'); },
   addBook: () => { go('gp'); addPanel('book', activeChart() ? { sym: activeChart().p.sym } : {}, ws.active(), 'right'); },
   addMon: () => { go('gp'); addPanel('monitor', {}, ws.active(), 'right'); }, addWl: () => { go('gp'); addPanel('watchlist', {}, ws.active(), 'left'); }, addAi: () => { go('gp'); addPanel('ai', {}, ws.active(), 'right'); },
@@ -1413,7 +1414,7 @@ Keys.on({
   ...Object.fromEntries(RG.map(r => ['r' + r, inGp(() => withChart(c => c.setRange(r)))]))
 });
 Keys.attach();
-document.addEventListener('keydown', e => {   // any letter starts a command, like the Bloomberg command line
+document.addEventListener('keydown', e => {   // typing starts a command
   const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement && document.activeElement.tagName);
   if (!typing && !e.ctrlKey && !e.altKey && !e.metaKey && /^[a-z0-9]$/i.test(e.key)) $('#cmd').focus();
 });
@@ -1433,7 +1434,7 @@ function startTimer() {
   startTimer(); await loadWatch(); await loadWL(); const d = await api.loadPicks(); if (d) showDesk(d);
   chartPrefs = Object.assign(chartPrefs, (await api.get('chartprefs')) || {}); lastStudies = await api.get('laststudies');
   await restoreWorkspace();
-  const lv = await api.get('lastview'); if (lv && VIEWS.includes(lv) && lv !== 'set') go(lv, true);   // reopen the screen you were on
+  const lv = await api.get('lastview'); if (lv && VIEWS.includes(lv) && lv !== 'set') go(lv, true);   // reopen last screen
   if (view === 'desk') loadDeskHome();
   if (!PROF.done) showSetup(true);
 })();

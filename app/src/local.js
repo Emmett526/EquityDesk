@@ -1,10 +1,9 @@
 'use strict';
-// Local AI models through Ollama: install Ollama, download (pull) Gemma 4 or gpt-oss with progress, remove a model.
-// Everything talks to the user's own Ollama server; nothing here sends app data anywhere.
+// local AI (Ollama): install, download, remove
 const os = require('os'), fs = require('fs'), path = require('path');
 const ai = require('./ai');
 
-// Sizes are Ollama's download sizes (Nov 2026). Memory figures are rough guides for usable speed, not hard limits.
+// model sizes (Nov 2026)
 const CATALOG = [
   { id: 'gemma4:31b', fam: 'gemma4', name: 'Gemma 4 31B', best: true, gb: 20, mem: 24, note: 'Most capable Gemma 4 (dense, 256K context, reads images). Best with a 24 GB GPU; on CPU it needs 32 GB RAM and is slow.' },
   { id: 'gemma4:26b', fam: 'gemma4', name: 'Gemma 4 26B MoE', gb: 19, mem: 20, note: 'Close to 31B in quality but much faster (only 4B active per token).' },
@@ -13,7 +12,7 @@ const CATALOG = [
   { id: 'gpt-oss:20b', fam: 'gpt-oss', dflt: true, name: 'gpt-oss 20B', gb: 14, mem: 16, note: 'What plain "gpt-oss" gives you. Runs with 16 GB of memory.' }
 ];
 const NAME_OK = /^[a-z0-9][a-z0-9._\-\/]{0,80}(:[a-z0-9._\-]{1,40})?$/i;
-const pulls = new Map();   // model -> AbortController
+const pulls = new Map();   // downloads in progress
 let sendProgress = () => {};
 
 function modelsDir() { return process.env.OLLAMA_MODELS || path.join(os.homedir(), '.ollama', 'models'); }
@@ -37,7 +36,7 @@ async function status(s) {
   catch (e) { out.error = String(e.message || e).slice(0, 200); }
   return out;
 }
-// Downloads the official Windows installer from ollama.com and opens it; the user clicks through Ollama's own setup.
+// Ollama installer
 async function installOllama(shell) {
   if (process.platform !== 'win32') { shell.openExternal('https://ollama.com/download'); return { ok: true, msg: 'Opened ollama.com/download in your browser.' }; }
   const file = path.join(os.tmpdir(), 'OllamaSetup.exe');
