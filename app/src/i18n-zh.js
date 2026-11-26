@@ -4,12 +4,12 @@
 window.I18N_ZH = {
   // top bar, tabs
   'Research desk': '研究台', 'Monitor': '監察', 'Launchpad': '工作區', 'Financials': '財務', 'Live headlines': '即時新聞',
-  'Customization': '自訂', 'Coming soon': '即將推出', 'Valuation': '估值', 'Quant models': '量化模型', 'General': '一般', 'Custom': '自訂', 'Custom = your own indicators and the look of the app (themes, tab order)': '自訂 = 你自己的指標及 app 外觀（主題、分頁次序）', 'Coming soon 😋': '即將推出 😋', 'Quant models and backtests are on the way.': '量化模型及回測即將推出。', 'Settings': '設定', 'Keys & commands': '按鍵及指令',
+  'Customization': '自訂', 'Coming soon': '即將推出', 'Valuation': '估值', 'Quant models': '量化模型', 'Which symbol FIN shows': 'FIN 顯示哪個代號', '● Market open': '● 開市中', '● Pre-market': '● 盤前', '● After hours': '● 盤後', '● Market closed': '● 已收市', 'General': '一般', 'Custom': '自訂', 'Custom = your own indicators and the look of the app (themes, tab order)': '自訂 = 你自己的指標及 app 外觀（主題、分頁次序）', 'Coming soon 😋': '即將推出 😋', 'Quant models and backtests are on the way.': '量化模型及回測即將推出。', 'Settings': '設定', 'Keys & commands': '按鍵及指令',
   'Dark mode, click to switch (Ctrl+Alt+T)': '深色模式，按此切換（Ctrl+Alt+T）', 'Light mode, click to switch (Ctrl+Alt+T)': '淺色模式，按此切換（Ctrl+Alt+T）',
   'NVDA <F8> GP · SPX <F10> · NVDA BOOK · AI · HELP': 'NVDA <F8> GP · SPX <F10> · NVDA BOOK · AI · HELP（輸入指令）',
   'RESEARCH ONLY · NO ORDER ENTRY · DATA MAY BE DELAYED': '只供研究 · 不設落盤 · 數據或有延遲',
   'US MKT CLOSED': '美股已收市', 'US MKT OPEN': '美股開市中',
-  'Version': '版本', 'Equity Desk Beta 1.1.2 (1.1.0-beta.3). See CHANGELOG.md in the source for what changed': 'Equity Desk Beta 1.1.2（1.1.0-beta.3）。更改內容見原始碼中的 CHANGELOG.md',
+  'Version': '版本', 'Equity Desk Beta 1.1.3 (1.1.0-beta.4). See CHANGELOG.md in the source for what changed': 'Equity Desk Beta 1.1.3（1.1.0-beta.4）。更改內容見原始碼中的 CHANGELOG.md',
   // DESK
   'Market overview': '市場概覽', '✦ AI market brief': '✦ AI 市場簡報', 'Open picks.json': '開啟 picks.json',
   'AI briefing on what is moving, using the app\'s own data': '用程式本身的數據，由 AI 簡報市場動向',
@@ -319,6 +319,8 @@ window.I18N_ZH = {
   'VP levels': 'VP 水平', 'In/Out bars': '內包／外包', 'Alligator': '鱷魚線', 'MA Cross': 'MA 交叉', 'Prev H/L': '前高／低', 'ATR Stop': 'ATR 止蝕', 'CK Stop': 'CK 止蝕', 'LR Slope': 'LR 斜率',
   'Aroon Osc': 'Aroon 震盪', 'Chaikin Vol': '蔡金波幅', 'Pivots': '樞軸點', 'Pivots HL': '高低樞軸', 'Pivots Std': '標準樞軸', 'MA Ribbon': 'MA 線帶', 'Auto Fib': '自動斐波那契', 'S/R Breaks': '支阻突破',
   'No name set': '未設定名稱',
+  // FIN estimates, statements, statistics, dividends
+  'Analyst rating': '分析師評級', 'Strong buy': '強烈買入', 'Buy': '買入', 'Hold': '持有', 'Sell': '賣出', 'Strong sell': '強烈賣出', 'Consensus:': '共識：', 'BUY': '買入', 'STRONG BUY': '強烈買入', 'HOLD': '持有', 'SELL': '賣出', 'STRONG SELL': '強烈賣出', 'UNDERPERFORM': '跑輸大市', 'OUTPERFORM': '跑贏大市', 'NONE': '沒有', 'Price target (1 year)': '目標價（1 年）', 'Average': '平均', 'Median': '中位數', 'Revenue estimates': '收入預測', 'Consensus detail': '共識詳情', 'Period': '期間', 'Ends': '結束日', 'Analysts': '分析師人數', 'Growth': '增長', 'EPS avg': '每股盈利平均', 'EPS low': '每股盈利最低', 'EPS high': '每股盈利最高', 'Revenue avg': '收入平均', 'Revenue low': '收入最低', 'Revenue high': '收入最高', 'Reported': '已公佈', 'Surprise': '意外幅度', 'No analyst targets for this symbol.': '此代號沒有分析師目標價。', 'Awesome oscillator': '動量震盪指標（AO）', 'Ultimate oscillator (7, 14, 28)': '終極震盪指標（7, 14, 28）', 'Momentum (10)': '動量（10）', 'Williams %R (14)': '威廉指標 %R（14）', 'Stochastic %K (14, 3, 3)': '隨機指標 %K（14, 3, 3）', 'Income statement': '損益表', 'Balance sheet': '資產負債表', 'Cash flow': '現金流量表', '(% = change vs previous year)': '（% = 與上年比較）', '(% = change vs same quarter a year earlier)': '（% = 與去年同季比較）', 'Total revenue': '總收入', 'Cost of goods sold': '銷售成本', 'Operating expenses': '營運開支', 'Research & development': '研究及開發', 'Selling, general & admin': '銷售、一般及行政開支', 'Operating income': '經營利潤', 'Interest expense': '利息開支', 'Pretax income': '除稅前利潤', 'Income tax': '所得稅', 'Basic EPS': '基本每股盈利', 'Diluted EPS': '攤薄每股盈利', 'Diluted shares': '攤薄股數', 'Total assets': '總資產', 'Current assets': '流動資產', 'Cash & short-term investments': '現金及短期投資', 'Receivables': '應收賬款', 'Inventory': '存貨', 'Non-current assets': '非流動資產', 'Property, plant & equipment (net)': '物業、廠房及設備（淨值）', 'Goodwill': '商譽', 'Total liabilities': '總負債', 'Current liabilities': '流動負債', 'Long-term debt': '長期債務', 'Total debt': '總債務', 'Net debt': '淨債務', 'Shareholders\' equity': '股東權益', 'Working capital': '營運資金', 'Tangible book value': '有形賬面值', 'Cash from operations': '經營現金流', 'Depreciation & amortization': '折舊及攤銷', 'Stock-based compensation': '股份為本的薪酬', 'Cash from investing': '投資現金流', 'Capital expenditure': '資本開支', 'Cash from financing': '融資現金流', 'Dividends paid': '已派股息', 'Share buybacks': '股份回購', 'Cash at end of period': '期末現金', '(fiscal years)': '（財年）', '(quarters; ratios use the trailing 4 quarters)': '（季度；比率用最近 4 季）', 'Current': '目前', 'Price to sales forward': '預測市銷率', 'PEG ratio': 'PEG 比率', 'Beta (5Y monthly)': 'Beta（5 年月度）', 'Short interest % of float': '淡倉佔流通股 %', 'Asset turnover': '資產周轉率', 'Long term debt to total equity ratio': '長期債務對總股本比率', 'Free cash flow per share': '每股自由現金流', 'Operating cash flow per share': '每股經營現金流', 'EBITDA per share': '每股 EBITDA', 'CapEx per share': '每股資本開支', 'Total debt per share': '每股總債務', 'Working capital per share': '每股營運資金', 'Net current asset value per share': '每股淨流動資產值', 'Annual dividend (indicated)': '年度股息（預示）', 'Payout ratio (TTM)': '派息比率（TTM）', '5-year average yield': '5 年平均股息率', 'Ex-dividend date': '除息日', 'Dividends per share': '每股股息', 'Dividend per share': '每股股息', 'by calendar year': '按公曆年', 'Dividend yield %': '股息率 %', 'year\'s dividends / year-end price': '全年股息／年底股價', 'Yield %': '股息率 %', 'Payout ratio %': '派息比率 %', 'dividends paid / net income': '已派股息／淨利潤', 'Payout %': '派息比率 %', 'Payment history': '派息記錄', 'Amount per share': '每股金額', 'Change': '變動', 'Dividend growth %': '股息增長 %', 'Growth %': '增長 %', 'No dividends paid.': '沒有派息。', 'Next earnings:': '下次業績：', 'EPS estimate': '每股盈利預測', 'Revenue estimate': '收入預測', 'By country over time': '按國家／地區（歷年）', 'By source / business over time': '按來源／業務（歷年）',
   'SET > Appearance > Language, or the first-launch screen: English (default) or Traditional Chinese (Hong Kong). Only the text on screen changes; tickers, commands and files stay the same': 'SET > 外觀 > 語言，或首次啟動畫面：English（預設）或繁體中文（香港）。只會改變畫面上的文字；代號、指令及檔案保持不變'
 };
 
@@ -381,4 +383,25 @@ window.I18N_ZH = {
     [/^Today's FMP calls are used up \((\d+) of (\d+), a few are kept spare\)\. Segments load again tomorrow; everything else in FIN still works\.$/, '今日的 FMP 呼叫次數已用完（$1 / $2，保留少量備用）。業務分部明天會再載入；FIN 其他部分照常運作。'],
     [/^FMP OK: (.+)$/, 'FMP 正常：$1']
   ];
+})();
+
+// patterns: FIN dates and sentences
+(function () {
+  const MO = { Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12 }, mo = '(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)';
+  const P = window.I18N_ZH_PAT;
+  P.push(
+    [new RegExp('^' + mo + ' (\\d{1,2}), (\\d{4})$'), m => `${m[3]}年${MO[m[1]]}月${m[2]}日`],
+    [new RegExp('^' + mo + ' (\\d{4})(ᵉ?)$'), m => `${m[2]}年${MO[m[1]]}月${m[3]}`],
+    [new RegExp('^' + mo + ' (\\d{1,2})$'), m => `${MO[m[1]]}月${m[2]}日`],
+    [/^\((\S+) on a 1 strong buy to 5 strong sell scale\)$/, '（$1；1 = 強烈買入，5 = 強烈賣出）'],
+    [/^Average target (.+) is$/, '平均目標價 $1，較現價'],
+    [/^from the current price, from (\S+) analysts\. Median (.+)\.$/, '，共 $1 位分析師。中位數 $2。'],
+    [/^([\d.,]+) on (.+)$/, (m, T) => `${m[1]}（${T(m[2])}）`],
+    [/^by calendar year, (\d{4}) so far$/, '按公曆年，$1 年至今'],
+    [/^· (EPS estimate|Revenue estimate)$/, (m, T) => '· ' + T(m[1])],
+    [/^Vol (\S+)$/, '成交量 $1'],
+    [/^Currency: (\S+)$/, '貨幣：$1'],
+    [/^(SMA|EMA|WMA|VWMA|HMA) (\d+) (close|open|high|low)$/, (m) => `${m[1]} ${m[2]} ${{ close: '收市價', open: '開市價', high: '最高價', low: '最低價' }[m[3]]}`],
+    [/^(.+?) ((?:FY)?\d{4}|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4}ᵉ?): (.+)$/, (m, T) => `${T(m[1])} ${T(m[2])}：${m[3]}`]
+  );
 })();

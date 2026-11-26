@@ -55,8 +55,10 @@ async function yahooQuote(sym) {
     low: num(m.regularMarketDayLow), vol: num(m.regularMarketVolume), currency: m.currency,
     time: m.regularMarketTime ? m.regularMarketTime * 1000 : Date.now(), src: 'Yahoo' };
 }
-async function yahooBars(sym, rg, iv) {
-  const [yi] = IVS[iv], yr = YR[rg];
+// longest history Yahoo gives per interval
+const HIST = { '1m': '5d', '2m': '1mo', '5m': '1mo', '15m': '1mo', '30m': '1mo', '60m': '2y', '1d': '10y', '1wk': 'max', '1mo': 'max' };
+async function yahooBars(sym, rg, iv, more) {
+  const [yi] = IVS[iv], yr = more ? HIST[yi] || YR[rg] : YR[rg];
   const r = await yahooChart(sym, yr, yi), q = r.indicators.quote[0], out = [];
   (r.timestamp || []).forEach((t, i) => {
     if (q.close[i] == null || q.open[i] == null) return;
@@ -117,11 +119,11 @@ async function quotes(symbols, settings) {
     .catch(e => ({ symbol: s, error: String(e.message || e) })));
   return res;
 }
-async function bars(symbol, range, settings, interval) {
+async function bars(symbol, range, settings, interval, more) {
   const s = clean(symbol), { range: rg, iv } = plan(range, interval);
-  if (process.env.EQUITY_MOCK) { const step = IVS[iv][1]; return { symbol: s, range: rg, iv, bars: mockBars(s, Math.max(20, Math.min(400, Math.round(step >= 86400 ? DAYS[rg] * 86400 * 0.69 / step : DAYS[rg] * 23400 / step))), step) }; }
-  const data = await yahooBars(s, rg, iv);
-  return { symbol: s, range: rg, iv, bars: data };
+  if (process.env.EQUITY_MOCK) { const step = IVS[iv][1], n = Math.max(20, Math.min(400, Math.round(step >= 86400 ? DAYS[rg] * 86400 * 0.69 / step : DAYS[rg] * 23400 / step))); return { symbol: s, range: rg, iv, more: !!more, bars: mockBars(s, more ? Math.min(2000, n * 4) : n, step) }; }
+  const data = await yahooBars(s, rg, iv, more);
+  return { symbol: s, range: rg, iv, more: !!more, bars: data };
 }
 // latest trade
 let mockTick = {};

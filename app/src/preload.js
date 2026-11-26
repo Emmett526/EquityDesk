@@ -1,7 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 const inv = (c, ...a) => ipcRenderer.invoke(c, ...a);
 contextBridge.exposeInMainWorld('api', {
-  quotes: s => inv('quotes', s), bars: (s, r, iv) => inv('bars', s, r, iv), tick: s => inv('tick', s), book: (s, o) => inv('book', s, o),
+  quotes: s => inv('quotes', s), bars: (s, r, iv, more) => inv('bars', s, r, iv, more), tick: s => inv('tick', s), book: (s, o) => inv('book', s, o),
   get: n => inv('store:get', n), set: (n, v) => inv('store:set', n, v),
   settings: () => inv('settings:get'), setSettings: p => inv('settings:set', p), testKey: k => inv('key:test', k), clearKeys: () => inv('keys:clearAll'), keysFolder: () => inv('keys:folder'), schwab: { login: () => inv('schwab:login'), code: u => inv('schwab:code', u), signOut: () => inv('schwab:signout') },
   news: o => inv('news', o), stats: s => inv('stats', s), fin: s => inv('fin', s), fx: p => inv('fx', p), wlImport: () => inv('wl:import'), wlOpenFile: () => inv('wl:openFile'), onWlChanged: f => ipcRenderer.on('wl:changed', () => f()), wlExport: d => inv('wl:export', d), openUrl: u => inv('open:url', u), openPicks: () => inv('picks:open'), loadPicks: () => inv('picks:load'), clearPicks: () => inv('picks:clear'), buildDesk: d => inv('desk:build', d),

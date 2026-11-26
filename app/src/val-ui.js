@@ -2,11 +2,11 @@
 // VAL screen (valuation)
 // data from api.fin (same as FIN)
 const ValScreen = (() => {
-  const P = { sym: '', sc: 'base', tab: 'sum' };
+  const P = { sym: '', sc: 'base', tab: 'sum', mode: 'follow' };
   try { Object.assign(P, JSON.parse(localStorage.getItem('valState') || '{}')); } catch (e) {}
   let D = null, root = null, busy = false, fxRate = 1, ov = {};   // ov: user's own inputs
   const $v = s => root.querySelector(s);
-  const save = () => { try { localStorage.setItem('valState', JSON.stringify({ sym: P.sym, sc: P.sc, tab: P.tab })); } catch (e) {} };
+  const save = () => { try { localStorage.setItem('valState', JSON.stringify({ sym: P.sym, sc: P.sc, tab: P.tab, mode: P.mode })); } catch (e) {} };
   const zh = () => !!(window.I18N && I18N.lang === 'zh-HK');
   const L = (en, z) => (zh() ? z : en);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -87,7 +87,7 @@ const ValScreen = (() => {
     const y = v => H - 22 - (v / mx) * (H - 40);
     let g = rows.map((r, i) => { const x = pad + i * bw + 4;
       return `<rect x="${x}" y="${y(r.f)}" width="${bw - 8}" height="${H - 22 - y(r.f)}" class="vcF"><title>${L('Year', '第')} ${r.y}${L('', ' 年')}: FCF ${big(r.f)}</title></rect>` +
-        `<rect x="${x + (bw - 8) * 0.25}" y="${y(r.pv)}" width="${(bw - 8) * 0.5}" height="${H - 22 - y(r.pv)}" class="vcP"><title>PV ${big(r.pv)}</title></rect>` +
+        `<rect x="${x + (bw - 8) * 0.25}" y="${y(r.pv)}" width="${(bw - 8) * 0.5}" height="${H - 22 - y(r.pv)}" class="vcP"><title>${L('PV', '現值')} ${big(r.pv)}</title></rect>` +
         `<text x="${x + (bw - 8) / 2}" y="${H - 6}" text-anchor="middle">${L('Y', '')}${r.y}${L('', '年')}</text>`; }).join('');
     return `<svg viewBox="0 0 ${W} ${H}" class="valChart">${g}</svg><div class="mut small valLeg"><i class="vcF"></i> ${L('Projected free cash flow', '預測自由現金流')} <i class="vcP"></i> ${L('Present value', '現值')}</div>`;
   }
@@ -174,8 +174,6 @@ const ValScreen = (() => {
       `<div><span class="mut">${L('Relative value', '相對估值')}</span><b class="valBig">${n2(rel.value)}</b><span class="small ${relUp >= 0 ? 'up' : 'dn'}">${sp(relUp)}</span></div>` +
       `<div><span class="mut">${L('Price', '股價')}</span><b class="valBig">${n2(price)}</b></div>` +
       `<div><span class="mut">${L('Analyst target (mean)', '分析師目標價（平均）')}</span><b class="valBig">${n2(fd.tMean)}</b><span class="small ${tUp >= 0 ? 'up' : 'dn'}">${sp(tUp)} · ${recLabel(fd.recMean)}</span></div>` +
-      (() => { const t = Tech.peek(D.symbol); if (!t) return ''; const k = Tech.level(t.sAll), nm = { sb: L('Strong buy', '強烈買入'), b: L('Buy', '買入'), n: L('Neutral', '中性'), s: L('Sell', '賣出'), ss: L('Strong sell', '強烈賣出') }[k];
-        return `<div><span class="mut">${L('Technicals', '技術分析')}</span><b class="valBig ${k === 'sb' || k === 'b' ? 'up' : k === 's' || k === 'ss' ? 'dn' : ''}">${nm}</b><span class="mut small">${L('daily prices', '每日股價')}</span></div>`; })() +
       `<div><span class="mut">${L('Economic moat', '經濟護城河')}</span><b class="valBig ${mo.cls}">${mo.lvl}</b><span class="mut small">${mo.score} / 6</span></div></div>` +
       rangeBar(Math.min(...[res.bear && res.bear.ps, rel.value, fd.tLow, price].filter(fin)), Math.max(...[res.bull && res.bull.ps, rel.value, fd.tHigh, price].filter(fin)),
         [{ v: res.bear && res.bear.ps, label: L('DCF bear', 'DCF 悲觀'), cls: 'dnM' }, { v: res.base && res.base.ps, label: L('DCF base', 'DCF 基本'), cls: 'baseM' }, { v: res.bull && res.bull.ps, label: L('DCF bull', 'DCF 樂觀'), cls: 'upM' }, { v: rel.value, label: L('Relative', '相對'), cls: 'relM' }, { v: price, label: L('Price', '股價'), cls: 'pxM' }]) +
@@ -245,7 +243,7 @@ const ValScreen = (() => {
       [[L('Low', '最低'), fd.tLow], [L('Mean', '平均'), fd.tMean], [L('Median', '中位數'), fd.tMed], [L('High', '最高'), fd.tHigh]].map(([l, v]) => `<div><span class="mut">${l}</span><b class="valBig">${n2(v)}</b><span class="small ${v >= price ? 'up' : 'dn'}">${fin(v) && fin(price) ? sp(v / price - 1) : ''}</span></div>`).join('') + `</div>` +
       rangeBar(Math.min(fd.tLow, price), Math.max(fd.tHigh, price), [{ v: fd.tLow, label: L('Low', '最低'), cls: 'dnM' }, { v: fd.tMean, label: L('Mean', '平均'), cls: 'baseM' }, { v: fd.tHigh, label: L('High', '最高'), cls: 'upM' }, { v: price, label: L('Price', '股價'), cls: 'pxM' }]) + dist +
       `<div class="mut small">${L('12-month price targets from analysts covering the stock, in', '覆蓋該股分析師的 12 個月目標價，貨幣為')} ${esc(ccy)}.</div>` : `<div class="mut">${L('No analyst price targets in the data for this symbol.', '數據中沒有這隻股票的分析師目標價。')}</div>`, 'wide') +
-      card(L('Financial estimates', '財務預測'), est, 'wide') + (hist ? card(L('Earnings: estimate vs actual', '盈利：預測對比實際'), hist) : '') + (trend ? card(L('Rating changes', '評級變化'), trend) : '') + Tech.card(D.symbol);
+      card(L('Financial estimates', '財務預測'), est, 'wide') + (hist ? card(L('Earnings: estimate vs actual', '盈利：預測對比實際'), hist) : '') + (trend ? card(L('Rating changes', '評級變化'), trend) : '');
   }
   function pgFund({ fd: fd0, mo }) {
     const Y = years(), lastY = Y[Y.length - 1] || {}, r = (k, f) => fin(fd0[k]) ? fd0[k] : f;   // TTM or last year
@@ -269,7 +267,7 @@ const ValScreen = (() => {
   const TABS = () => [['sum', L('Summary', '摘要')], ['dcf', L('DCF valuation', '現金流折現估值')], ['rel', L('Relative valuation', '相對估值')], ['rate', L('Discount rate', '折現率')], ['fc', L('Forecasts', '預測')], ['fund', L('Fundamentals', '基本面')]];
   function draw() {
     if (!root) return;
-    $v('#valTitle').textContent = L('Valuation', '估值'); $v('#valSym').placeholder = L('Ticker', '代號'); $v('#valReload').title = L('Reload', '重新載入');
+    $v('#valTitle').textContent = L('Valuation', '估值'); $v('#valSym').title = L('Type a ticker and press Enter (NVDA, 700 HK, 7203 JT)', '輸入代號後按 Enter（NVDA、700 HK、7203 JT）'); $v('#valMode').title = L('Which symbol VAL shows', 'VAL 顯示哪個代號'); [...$v('#valMode').options].forEach(o => { o.textContent = o.value === 'follow' ? L('Active chart', '使用中圖表') : L('Symbol', '代號'); }); $v('#valSym').placeholder = L('Ticker', '代號'); $v('#valReload').title = L('Reload', '重新載入');
     $v('#valTabs').innerHTML = TABS().map(([k, l]) => `<button data-tab="${k}" class="${P.tab === k ? 'on' : ''}">${l}</button>`).join('');
     $v('#valSc').innerHTML = [['bear', L('Bear', '悲觀')], ['base', L('Base', '基本')], ['bull', L('Bull', '樂觀')]].map(([k, l]) => `<button data-sc="${k}" class="${P.sc === k ? 'on' : ''}" title="${esc(L('DCF scenario', 'DCF 情境'))}">${l}</button>`).join('');
     $v('#valSc').style.visibility = ['sum', 'dcf'].includes(P.tab) ? '' : 'hidden';
@@ -295,7 +293,6 @@ const ValScreen = (() => {
     fxRate = 1; const fc = r.finCcy, pc_ = r.currency;
     if (fc && pc_ && fc !== pc_) { try { const from = fc, to = pc_ === 'GBp' ? 'GBP' : pc_; const m = await api.fx([[from, to]]); const v = m && m[from + to]; if (fin(v)) fxRate = v * (pc_ === 'GBp' ? 100 : 1); } catch (e) {} }
     busy = false; D = r; draw();
-    Tech.get(sym).then(() => { if (P.sym === sym && D) draw(); });
   }
   function resolveTicker(t) { try { const w = String(t).trim().toUpperCase().split(/\s+/); return resolve(withMarket(w)[0], null); } catch (e) { return String(t).trim().toUpperCase(); } }
   function init() {
@@ -305,9 +302,14 @@ const ValScreen = (() => {
     root.addEventListener('change', e => { const k = e.target.dataset && e.target.dataset.k; if (!k) return; const v = parseFloat(e.target.value);
       if (!Number.isFinite(v)) delete ov[k]; else ov[k] = e.target.dataset.raw ? v : v / 100;
       if (P.sc !== 'base') P.sc = 'base'; draw(); });
-    $v('#valSym').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') load(resolveTicker($v('#valSym').value)); });
+    $v('#valSym').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') pick(resolveTicker($v('#valSym').value)); });
+    $v('#valMode').value = P.mode; $v('#valMode').addEventListener('change', e => { P.mode = e.target.value; save(); if (P.mode === 'follow') { const s = chartSym(); if (s && s !== P.sym) load(s); } });
     window.addEventListener('eqlang', () => { if (D && root.classList.contains('on')) load(P.sym); else draw(); });
   }
-  function show(sym) { init(); const want = sym || P.sym || (typeof activeChart === 'function' && activeChart() ? activeChart().p.sym : '') || 'AAPL'; if (want !== (D && D.symbol) || !D) load(want); else draw(); }
-  return { show, load, get data() { return D; }, get state() { return P; }, dcf: a => dcf(a) };
+  // follow chart
+  const chartSym = () => typeof activeChart === 'function' && activeChart() ? activeChart().p.sym : '';
+  function follow(sym) { if (P.mode === 'follow' && sym && sym !== P.sym && root && root.classList.contains('on')) load(sym); }
+  function pick(sym) { init(); P.mode = 'sym'; save(); $v('#valMode').value = 'sym'; load(sym); }
+  function show(sym) { init(); if (busy) return draw(); const want = sym || (P.mode === 'follow' && chartSym()) || P.sym || chartSym() || 'AAPL'; if (want !== (D && D.symbol) || !D) load(want); else draw(); }
+  return { show, load, follow, pick, get data() { return D; }, get state() { return P; }, dcf: a => dcf(a) };
 })();

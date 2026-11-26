@@ -4,6 +4,8 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&a
 const f2 = n => n == null || Number.isNaN(+n) ? '-' : Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const cls = n => n > 0 ? 'up' : n < 0 ? 'dn' : '';
 const sgn = n => n > 0 ? '+' : '';
+const sg2 = n => n > 0 ? '+' : n < 0 ? '−' : '';   // sign incl. minus
+const kmb = v => { const a = Math.abs(v); return a >= 1e9 ? (v / 1e9).toFixed(2) + 'B' : a >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : a >= 1e3 ? (v / 1e3).toFixed(2) + 'K' : String(Math.round(v)); };
 const vol = n => n == null ? '-' : n >= 1e9 ? (n / 1e9).toFixed(2) + 'B' : n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : String(Math.round(n));
 const clean = s => String(s).trim().toUpperCase().replace(/[^A-Z0-9.\-^=]/g, '');
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
@@ -13,6 +15,7 @@ const say = (src, t) => { const now = Date.now(), last = t && now - t > 5 * 60e3
   $('#srcline').textContent = src ? `${src} · updated ${fmtLocal(now)}${last}` : 'No data yet'; };
 const status = t => { $('#stMsg').textContent = t || ''; };
 const RG = ['1D', '5D', '1M', '3M', '6M', '1Y', '5Y'];
+const RG_DAYS = { '1D': 1, '5D': 5, '1M': 31, '3M': 92, '6M': 183, '1Y': 366, '5Y': 1830 };
 const IVL = [['auto', 'Auto'], ['Seconds (live)', ['1s', '5s', '15s', '30s']], ['Minutes', ['1m', '2m', '5m', '15m', '30m']], ['Hours', ['1h', '2h', '4h']], ['Days', ['D', 'W', 'M']]];
 const IV_RANGE = { '1m': '1D', '2m': '5D', '5m': '5D', '15m': '1M', '30m': '1M', '1h': '3M', '2h': '6M', '4h': '1Y', D: '1Y', W: '5Y', M: '5Y' };   // range for each interval
 const ivSec = iv => /^\d+s$/.test(iv || '') ? parseInt(iv) : 0;
@@ -29,6 +32,9 @@ function go(v, noHist) {
 }
 $$('#fkeys button[data-v]').forEach(b => b.onclick = () => go(b.dataset.v));
 $$('.setTabs button[data-go]').forEach(b => b.onclick = () => go(b.dataset.go));
+
+// FIN / VAL follow chart
+function followScreens(sym) { if (typeof FinScreen !== 'undefined') FinScreen.follow(sym); if (typeof ValScreen !== 'undefined') ValScreen.follow(sym); }
 
 // ---- command line ----
 const CMD_VIEWS = { NEWS: 'news', N: 'news', TOP: 'news', CN: 'news', DESK: 'desk', MON: 'watch', MONITOR: 'watch', WATCH: 'watch', IND: 'ind', INDICATORS: 'ind', CUSTOM: 'ind', QUANT: 'quant', QUANTS: 'quant', QNT: 'quant', CUST: 'ind', CUSTOMIZE: 'ind', CUSTOMIZATION: 'ind', SET: 'set', SETTINGS: 'set', FIN: 'fin', FA: 'fin', FINANCIALS: 'fin', HELP: 'help', LAB: 'lab', VAL: 'lab', VALUATION: 'lab', DCF: 'lab', LAUNCHPAD: 'gp', BLP: 'gp' };
@@ -67,8 +73,8 @@ async function runCmd(raw) {
   if (w[0] === 'ASK' && w.length > 1) { go('gp'); const p = focusPanel('ai'); return p.inst.send(raw.replace(/^\s*ask\s+/i, '')); }
   if (w.length === 1 && ['N', 'NEWS', 'TOP'].includes(w[0])) { const n = newsScreen(); n.p.mode = 'top'; n.q('.nMode').value = 'top'; n.q('.nSym').style.display = 'none'; return go('news'); }
   if (w.length >= 2 && ['CN', 'N', 'NEWS'].includes(w[w.length - 1])) { const n = newsScreen(); n.p.mode = 'sym'; n.p.sym = resolve(w[0], sector); n.q('.nMode').value = 'sym'; n.q('.nSym').value = n.p.sym; n.q('.nSym').style.display = ''; return go('news'); }
-  if (w.length >= 2 && ['FA', 'FIN', 'DES', 'ERN', 'DVD', 'EE', 'FINANCIALS'].includes(w[w.length - 1])) { const sym = resolve(w[0], sector), t = { ERN: 'earn', DVD: 'div', EE: 'est', DES: 'ov' }[w[w.length - 1]]; if (t) FinScreen.state.tab = t; go('fin', false); return FinScreen.load(sym); }
-  if (w.length >= 2 && ['VAL', 'DCF', 'VALUATION', 'FV'].includes(w[w.length - 1])) { const sym = resolve(w[0], sector); if (w[w.length - 1] === 'DCF') ValScreen.state.tab = 'dcf'; go('lab', false); return ValScreen.load(sym); }
+  if (w.length >= 2 && ['FA', 'FIN', 'DES', 'ERN', 'DVD', 'EE', 'FINANCIALS'].includes(w[w.length - 1])) { const sym = resolve(w[0], sector), t = { ERN: 'earn', DVD: 'div', EE: 'est', DES: 'ov' }[w[w.length - 1]]; if (t) FinScreen.state.tab = t; FinScreen.pick(sym); return go('fin', false); }
+  if (w.length >= 2 && ['VAL', 'DCF', 'VALUATION', 'FV'].includes(w[w.length - 1])) { const sym = resolve(w[0], sector); if (w[w.length - 1] === 'DCF') ValScreen.state.tab = 'dcf'; ValScreen.pick(sym); return go('lab', false); }
   if (w.length === 1 && (w[0] === 'UI' || w[0] === 'THEME')) { go('ind'); return cuTab('ui'); }
   if (w.length === 1 && w[0] === 'RESETUI') return resetSkin();
   if (w.length === 1 && CMD_VIEWS[w[0]]) return go(CMD_VIEWS[w[0]]);
@@ -463,7 +469,7 @@ class ChartPanel {
     c.timeScale().subscribeVisibleLogicalRangeChange(r => { if (!r || this.restoring || !this.bars.length) return; p.vr = { from: r.from, to: r.to, n: this.bars.length }; clearTimeout(this.vrT); this.vrT = setTimeout(saveWs, 800); });
     // keep range on resize
     this.fit = true; this.box.addEventListener('wheel', () => { this.fit = false; }, { passive: true }); this.box.addEventListener('pointermove', ev => { if (ev.buttons === 1 && this.draw.tool() === 'cursor' && !/lg-/.test(document.body.className)) this.fit = false; });
-    this.ro = new ResizeObserver(() => { if (this.fit && this.bars.length && this.box.clientWidth > 50) requestAnimationFrame(() => this.chart.timeScale().fitContent()); }); this.ro.observe(this.box);
+    this.ro = new ResizeObserver(() => { if (this.fit && this.bars.length && this.box.clientWidth > 50) requestAnimationFrame(() => this.showRange()); }); this.ro.observe(this.box);
     this.draw = Drawings.create();
     this.draw.attach({ chart: c, series: this.cs, box: this.box, canvas: this.q('.draw'), bars: () => this.bars,
       save: list => { allDrawings[p.sym] = list; if (!list.length) delete allDrawings[p.sym]; clearTimeout(saveDrawT); saveDrawT = setTimeout(() => api.set('drawings', allDrawings), 400);
@@ -483,8 +489,17 @@ class ChartPanel {
   restoreView(first) {   // restore zoom
     const v = this.p.vr; this.restoring = true;
     if (first && v && v.n === this.bars.length && v.to > v.from) { this.fit = false; const apply = () => this.chart.timeScale().setVisibleLogicalRange({ from: v.from, to: v.to }); apply(); setTimeout(apply, 150); }
-    else { this.fit = true; this.chart.timeScale().fitContent(); }
+    else { this.fit = true; this.showRange(); }
     setTimeout(() => { this.restoring = false; }, 300);
+  }
+  showRange() {   // open on the chosen range; older bars stay to the left
+    const b = this.bars, ts = this.chart.timeScale(); if (!b.length) return;
+    const last = b[b.length - 1].time, days = RG_DAYS[this.p.rg] || 0;
+    let from = last - days * 86400;
+    if (this.p.rg === '1D') { const day = t => new Date((t + (this.tzOff || 0)) * 1000).toISOString().slice(0, 10), d = day(last); let i = b.length - 1; while (i > 0 && day(b[i - 1].time) === d) i--; from = b[i].time; }
+    const i0 = b.findIndex(x => x.time >= from);
+    if (!days || i0 <= 0) return ts.fitContent();
+    ts.setVisibleLogicalRange({ from: i0 - 0.5, to: b.length - 0.5 + Math.max(2, (b.length - i0) * 0.04) });
   }
   stopLive() { if (this.live) { clearInterval(this.live.t); this.live = null; } }
   startLive(sym, sec, tok) {   // second bars from polling
@@ -506,10 +521,10 @@ class ChartPanel {
     const p = this.p; sym = clean(sym || p.sym); if (!sym) return; const changed = sym !== p.sym || first;
     p.sym = sym; if (rg) p.rg = rg; this.q('.psym').value = sym; this.q('.prg').querySelectorAll('.rb').forEach(b => b.classList.toggle('on', b.dataset.r === p.rg));
     saveWs(); relayoutTitles(); this.q('.pinfo').textContent = 'Loading…';
-    if (activeChart() === this) { allPanels('book').filter(b => b.p.follow && b.p.sym !== sym).forEach(b => b.setSym(sym)); allPanels('news').forEach(n => n.follow(sym)); }
+    if (activeChart() === this) { allPanels('book').filter(b => b.p.follow && b.p.sym !== sym).forEach(b => b.setSym(sym)); allPanels('news').forEach(n => n.follow(sym)); followScreens(sym); }
     this.q('.piv').value = p.iv; this.stopLive();
     const tok = ++this.tok, sec = ivSec(p.iv);
-    const r = sec ? { bars: tickStore[sym + '|' + p.iv] || (tickStore[sym + '|' + p.iv] = []) } : await api.bars(sym, p.rg, p.iv); if (tok !== this.tok) return;
+    const r = sec ? { bars: tickStore[sym + '|' + p.iv] || (tickStore[sym + '|' + p.iv] = []) } : await api.bars(sym, p.rg, p.iv, true); if (tok !== this.tok) return;
     if (r.error) { this.q('.pinfo').textContent = r.error.slice(0, 160); return; }
     if (r.range && r.range !== p.rg) { p.rg = r.range; this.q('.prg').querySelectorAll('.rb').forEach(b => b.classList.toggle('on', b.dataset.r === p.rg)); relayoutTitles(); }
     this.tzFormat(exchOf(sym));
@@ -525,7 +540,9 @@ class ChartPanel {
     this.studies(); this.quote();
   }
   tzFormat(code) {   // exchange time zone
-    const tz = EXCH[code || 'NY'] ? EXCH[code || 'NY'][1] : 'America/New_York'; if (this.tz === tz) return; this.tz = tz;
+    const tz = EXCH[code || 'NY'] ? EXCH[code || 'NY'][1] : 'America/New_York';
+    try { const n = new Date(), loc = new Date(n.toLocaleString('en-US', { timeZone: tz })); this.tzOff = Math.round((loc - new Date(n.toLocaleString('en-US', { timeZone: 'UTC' }))) / 1000); } catch (e) { this.tzOff = 0; }
+    if (this.tz === tz) return; this.tz = tz;
     const F = o => new Intl.DateTimeFormat('en-GB', { timeZone: tz, hourCycle: 'h23', ...o }), fy = F({ year: 'numeric' }), fm = F({ month: 'short' }), fd = F({ day: 'numeric' }), ft = F({ hour: '2-digit', minute: '2-digit' }), fs = F({ hour: '2-digit', minute: '2-digit', second: '2-digit' }), fx = F({ day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' });
     const d = t => new Date((typeof t === 'number' ? t : Date.UTC(t.year, t.month - 1, t.day) / 1000) * 1000);
     this.chart.applyOptions({ localization: { timeFormatter: t => fx.format(d(t)) }, timeScale: { tickMarkFormatter: (t, type) => [fy, fm, fd, ft, fs][type].format(d(t)) } });
@@ -609,7 +626,9 @@ class ChartPanel {
     const L = this.q('.legend'); if (!this.bars.length) { L.innerHTML = ''; return; }
     const bar = x && x.seriesData && x.seriesData.get(this.cs) || this.bars[this.bars.length - 1];
     const val = s => { const v = x && x.seriesData && x.seriesData.get(s); if (v && v.value != null) return f2(v.value); const d = s.data(), l = d[d.length - 1]; return !x && l && l.value != null ? f2(l.value) : ''; };
-    let h = `<div class="row"><span class="sym">${esc(this.p.sym)}</span><span class="mut">${this.p.rg}</span>O <b>${f2(bar.open)}</b> H <b>${f2(bar.high)}</b> L <b>${f2(bar.low)}</b> C <b class="${cls(bar.close - bar.open)}">${f2(bar.close)}</b>${(() => { const c = inMine(this.p.sym, bar.close); return c == null ? '' : ` <span class="mut" title="Close converted to your primary currency (SET > Profile)">≈ ${f2(c)} ${esc(myCcy())} · ${esc(ccyOf(this.p.sym))}</span>`; })()}</div>`;
+    const bi = x && x.time != null ? this.bars.findIndex(z => z.time === x.time) : this.bars.length - 1, pb = bi > 0 ? this.bars[bi - 1] : null;
+    const bch = pb ? bar.close - pb.close : null, bpc = pb && pb.close ? (bar.close / pb.close - 1) * 100 : null;
+    let h = this.head() + `<div class="row"><span class="sym">${esc(this.p.sym)}</span><span class="mut">${this.p.rg}</span>O <b>${f2(bar.open)}</b> H <b>${f2(bar.high)}</b> L <b>${f2(bar.low)}</b> C <b class="${cls(bar.close - bar.open)}">${f2(bar.close)}</b>${bch == null ? '' : ` <b class="${cls(bch)}">${sg2(bch)}${f2(Math.abs(bch))} (${sg2(bpc)}${Math.abs(bpc).toFixed(2)}%)</b>`}${(() => { const c = inMine(this.p.sym, bar.close); return c == null ? '' : ` <span class="mut" title="Close converted to your primary currency (SET > Profile)">≈ ${f2(c)} ${esc(myCcy())} · ${esc(ccyOf(this.p.sym))}</span>`; })()}</div>`;
     const list = this.p.studies;
     if (list.length) h += `<div class="row fold"><button data-a="more" title="Show / hide the indicator list">${this.p.fold ? '▸' : '▾'} ${list.length} indicator${list.length > 1 ? 's' : ''}</button></div>`;
     if (!this.p.fold) list.forEach(s => {
@@ -630,6 +649,14 @@ class ChartPanel {
       (Drawings.hasText(d.type) ? '<button class="btn" data-a="txt">Edit text</button>' : '') +
       `<button class="btn" data-a="dup" title="Clone">Clone</button><button class="btn" data-a="front" title="Bring to front">▲</button><button class="btn" data-a="back" title="Send to back">▼</button>` +
       `<button class="btn" data-a="lock">${d.lock ? 'Unlock' : 'Lock'}</button><button class="btn" data-a="del">Delete</button>`;
+  }
+  head() {   // price header: last, change, market state
+    const s = this.p.sym, q = wlQuotes[s] || {}, d = this.qd && this.qd.symbol === s ? this.qd : {}, lb = this.bars[this.bars.length - 1];
+    const px = d.last ?? q.price ?? (lb && lb.close), prev = d.prev ?? q.prev; if (px == null) return '';
+    const ch = prev ? px - prev : null, pc = prev ? (px / prev - 1) * 100 : null, st = (d.state || '').toUpperCase();
+    const stTxt = !st ? '' : st === 'REGULAR' ? '<span class="up">● Market open</span>' : /^PRE/.test(st) ? '<span style="color:var(--yel)">● Pre-market</span>' : /^POST/.test(st) ? '<span style="color:var(--yel)">● After hours</span>' : '<span class="mut">● Market closed</span>';
+    const vol = q.vol ?? (lb && lb.volume);
+    return `<div class="row qhead"><b class="qpx">${f2(px)}</b><span class="mut">${esc(ccyOf(s))}</span>${ch == null ? '' : `<b class="${cls(ch)}">${sg2(ch)}${f2(Math.abs(ch))}</b><b class="${cls(ch)}">${sg2(pc)}${Math.abs(pc).toFixed(2)}%</b>`}${stTxt}${vol ? `<span class="mut">Vol ${kmb(vol)}</span>` : ''}</div>`;
   }
   async quote() {   // bid/ask box + last price
     const r = await api.book(this.p.sym, { depth: false }); if (!r || r.error || r.symbol !== this.p.sym) return;
@@ -1041,7 +1068,7 @@ function ensureWorkspace() {
   if (ws) return;
   ws = Layout.create($('#ws'), {
     mount: id => panels[id].inst.el, title: id => panels[id] ? panels[id].inst.title() : id,
-    onActive: id => { const x = panels[id]; if (x && x.p.kind === 'chart') { lastChart = id; markTool(x.inst.draw.tool()); allPanels('book').filter(b => b.p.follow && b.p.sym !== x.inst.p.sym).forEach(b => b.setSym(x.inst.p.sym)); allPanels('news').forEach(n => n.follow(x.inst.p.sym)); } saveWs(); },
+    onActive: id => { const x = panels[id]; if (x && x.p.kind === 'chart') { lastChart = id; markTool(x.inst.draw.tool()); allPanels('book').filter(b => b.p.follow && b.p.sym !== x.inst.p.sym).forEach(b => b.setSym(x.inst.p.sym)); allPanels('news').forEach(n => n.follow(x.inst.p.sym)); followScreens(x.inst.p.sym); } saveWs(); },
     onClose: id => { destroyPanel(id); saveWs(); },
     kinds: [['chart', 'Chart'], ['book', 'Order book'], ['watchlist', 'Watchlist'], ['news', 'News'], ['monitor', 'Monitor'], ['ai', 'AI assistant']],
     kindOf: id => panels[id] ? panels[id].p.kind : 'chart',

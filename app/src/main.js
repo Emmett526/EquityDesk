@@ -73,7 +73,7 @@ function publicSettings() {
 
 ipcMain.handle('quotes', (_e, syms) => provider.quotes(Array.isArray(syms) ? syms.slice(0, 500) : [], settings()));
 ipcMain.handle('book', async (_e, sym, o) => { try { return await provider.book(String(sym), settings(), { depth: !!(o && o.depth) }); } catch (e) { return { error: scrub(e) }; } });
-ipcMain.handle('bars', async (_e, sym, range, iv) => { try { return await provider.bars(String(sym), String(range), settings(), iv ? String(iv) : 'auto'); } catch (e) { return { error: scrub(e) }; } });
+ipcMain.handle('bars', async (_e, sym, range, iv, more) => { try { return await provider.bars(String(sym), String(range), settings(), iv ? String(iv) : 'auto', !!more); } catch (e) { return { error: scrub(e) }; } });
 ipcMain.handle('tick', async (_e, sym) => { try { return await provider.tick(String(sym)); } catch (e) { return { error: scrub(e) }; } });
 const isZh = () => (readJson('lang.json', {}) || {}).lang === 'zh-HK';   // Chinese mode
 const L = (en, zh) => (isZh() ? zh : en);   // dialog titles

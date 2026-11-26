@@ -3,7 +3,7 @@
 // data from api.fin
 const FinScreen = (() => {
   const TABS = [['ov', 'Overview'], ['st', 'Statements'], ['stat', 'Statistics'], ['est', 'Estimates'], ['div', 'Dividends'], ['earn', 'Earnings'], ['seg', 'Segments']];
-  let P = { sym: '', tab: 'ov', per: 'annual', stmt: 'is' }, D = null, busy = false, root = null, CW = 1200;
+  let P = { sym: '', tab: 'ov', per: 'annual', stmt: 'is', mode: 'follow' }, D = null, busy = false, root = null, CW = 1200;
   try { const s = JSON.parse(localStorage.getItem('finP') || '{}'); if (s && typeof s === 'object') P = Object.assign(P, s); } catch (e) {}
   const save = () => { try { localStorage.setItem('finP', JSON.stringify(P)); } catch (e) {} };
   const $f = s => root.querySelector(s);
@@ -192,9 +192,14 @@ const FinScreen = (() => {
     let rt = 0; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (root.classList.contains('on') && D) draw(); }, 200); });
     root.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return;
       if (b.dataset.tab) { P.tab = b.dataset.tab; save(); draw(); } else if (b.dataset.per) { P.per = b.dataset.per; save(); draw(); } else if (b.dataset.stmt) { P.stmt = b.dataset.stmt; save(); draw(); } else if (b.id === 'finReload') load(P.sym); });
-    $f('#finSym').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') load(typeof resolve === 'function' ? resolveTicker($f('#finSym').value) : $f('#finSym').value); });
+    $f('#finSym').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') pick(typeof resolve === 'function' ? resolveTicker($f('#finSym').value) : $f('#finSym').value); });
+    $f('#finMode').value = P.mode; $f('#finMode').addEventListener('change', e => { P.mode = e.target.value; save(); if (P.mode === 'follow') { const s = chartSym(); if (s && s !== P.sym) load(s); } });
   }
+  // follow chart
+  const chartSym = () => typeof activeChart === 'function' && activeChart() ? activeChart().p.sym : '';
+  function follow(sym) { if (P.mode === 'follow' && sym && sym !== P.sym && root && root.classList.contains('on')) load(sym); }
+  function pick(sym) { init(); P.mode = 'sym'; save(); $f('#finMode').value = 'sym'; load(sym); }
   function resolveTicker(t) { try { const w = String(t).trim().toUpperCase().split(/\s+/); const m = withMarket(w); return resolve(m[0], null); } catch (e) { return String(t).trim().toUpperCase(); } }
-  function show(sym) { init(); const want = sym || P.sym || (typeof activeChart === 'function' && activeChart() ? activeChart().p.sym : '') || 'AAPL'; if (want !== P.sym || !D) load(want); else draw(); }
-  return { show, load, get data() { return D; }, get state() { return P; } };
+  function show(sym) { init(); if (busy) return draw(); const want = sym || (P.mode === 'follow' && chartSym()) || P.sym || chartSym() || 'AAPL'; if (want !== P.sym || !D) load(want); else draw(); }
+  return { show, load, follow, pick, get data() { return D; }, get state() { return P; } };
 })();

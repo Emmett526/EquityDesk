@@ -95,10 +95,6 @@ const Tech = (() => {
   const peek = sym => { const c = cache.get(sym); return c ? c.v : undefined; };
 
   // draw
-  function scale(v) {   // scale bar
-    const x = Math.max(0, Math.min(100, (v + 1) / 2 * 100)), N = NAMES();
-    return `<div class="techScale">${['ss', 's', 'n', 'b', 'sb'].map(k => `<span style="background:${COL[k]}">${esc(N[k])}</span>`).join('')}<i style="left:${x.toFixed(1)}%"></i></div>`;
-  }
   function rows(cnt) {   // count bars
     const tot = cnt.buy + cnt.neutral + cnt.sell || 1;
     return `<div class="finRec">${[[L('Buy', '買入'), cnt.buy, COL.b], [L('Neutral', '中性'), cnt.neutral, COL.n], [L('Sell', '賣出'), cnt.sell, COL.s]].map(([l, v, c]) => `<div><span>${l}</span><i style="width:${v / tot * 100}%;background:${c}"></i><b>${v}</b></div>`).join('')}</div>`;
@@ -109,8 +105,9 @@ const Tech = (() => {
     if (!t) return `<div class="finCard techCard" data-noi18n>${head}<div class="mut small">${L('Not enough price history for a technical rating (needs about 3 months of daily prices).', '價格歷史不足，未能給出技術評級（需要約 3 個月的每日股價）。')}</div></div>`;
     const k = level(t.sAll), f = v => fin(v) ? (Math.abs(v) >= 1000 ? v.toFixed(0) : v.toFixed(2)) : '—';
     const sigTxt = s => s > 0 ? `<span class="up">${L('Buy', '買入')}</span>` : s < 0 ? `<span class="dn">${L('Sell', '賣出')}</span>` : `<span class="mut">${L('Neutral', '中性')}</span>`;
-    const group = (title, list, sc) => `<tr class="sec"><td colspan="3">${title}: ${esc(N[level(sc)])}</td></tr>` + list.map(x => `<tr><td>${esc(x.name)}</td><td>${f(x.val)}</td><td>${sigTxt(x.s)}</td></tr>`).join('');
-    return `<div class="finCard techCard" data-noi18n>${head}<div class="techBig" style="color:${COL[k]}">${esc(N[k])}</div>${scale(t.sAll)}` +
+    const ZHN = { 'Stochastic %K (14, 3, 3)': '隨機指標 %K（14, 3, 3）', 'Awesome oscillator': '動量震盪指標（AO）', 'Momentum (10)': '動量（10）', 'Williams %R (14)': '威廉指標 %R（14）', 'Ultimate oscillator (7, 14, 28)': '終極震盪指標（7, 14, 28）' };   // zh names
+    const group = (title, list, sc) => `<tr class="sec"><td colspan="3">${title}: ${esc(N[level(sc)])}</td></tr>` + list.map(x => `<tr><td>${esc(L(x.name, ZHN[x.name] || x.name))}</td><td>${f(x.val)}</td><td>${sigTxt(x.s)}</td></tr>`).join('');
+    return `<div class="finCard techCard" data-noi18n>${head}<div class="techBig" style="color:${COL[k]}">${esc(N[k])}</div>` +
       `<div class="techSub"><span>${L('Moving averages', '移動平均線')}: <b style="color:${COL[level(t.sMa)]}">${esc(N[level(t.sMa)])}</b></span><span>${L('Oscillators', '震盪指標')}: <b style="color:${COL[level(t.sOsc)]}">${esc(N[level(t.sOsc)])}</b></span></div>` +
       rows(t.cAll) +
       `<details${opts.open ? ' open' : ''}><summary class="small">${L('All indicators', '所有指標')} (${t.ma.length + t.osc.length})</summary><table class="finT techT"><thead><tr><th>${L('Indicator', '指標')}</th><th>${L('Value', '數值')}</th><th>${L('Signal', '訊號')}</th></tr></thead><tbody>` +
