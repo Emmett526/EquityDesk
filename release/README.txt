@@ -1,6 +1,6 @@
 EQUITY DESK BETA 1.0 - READ ME
 ==============================
-Version 1.1.0-beta.4 (Beta 1.1.3). This is a beta: expect rough edges, and please report problems.
+Version 1.1.0-beta.5 (Beta 1.1.4). This is a beta: expect rough edges, and please report problems.
 
 
 1. RESEARCH ONLY, NOT TRADING
@@ -12,7 +12,7 @@ financial advice. You make your own decisions and carry your own risk.
 
 2. INSTALL AND START
 --------------------
-Run EquityDesk-Setup-1.1.0-beta.4.exe (no admin needed). If SmartScreen warns: More info > Run anyway.
+Run EquityDesk-Setup-1.1.0-beta.5.exe (no admin needed). If SmartScreen warns: More info > Run anyway.
 Or unzip the portable version and run EquityDesk.exe.
 First launch asks for the display language (English, or Traditional Chinese for Hong Kong), a display name, primary market, location, time zone, primary currency and a free
 AI model (Gemma 4 or gpt-oss through Ollama). Change them later in SET > Profile and SET > AI assistant;
@@ -24,6 +24,9 @@ little Chinese coverage. Tickers, commands (DESK, MON, NVDA F8...) and file form
 
 Tabs (Ctrl+number): 1 DESK  2 MON  3 GP (charts)  4 FIN  5 VAL  6 QUANTS (coming soon)  7 NEWS  8 SET  9 HELP.
 Custom indicators and custom UI are inside SET: SET > Custom (Ctrl+Shift+8).
+Options panel (GP > Add > Options, or type GEX / NVDA GEX; US stocks and ETFs): net GEX, call wall, put wall,
+zero gamma, max pain, expected move, put/call ratios, ATM implied volatility, and GEX / open interest by strike,
+from Yahoo option chains. It follows the active chart like NEWS.
 Type commands like Bloomberg: NVDA then F8, 700 HK, SPX <F10>, NVDA BOOK, NVDA FA, ASK <question>.
 F1 or HELP lists every command and key.
 

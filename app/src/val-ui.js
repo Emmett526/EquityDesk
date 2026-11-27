@@ -280,7 +280,7 @@ const ValScreen = (() => {
     let out = '';
     try { out = ({ sum: pgSummary, dcf: pgDcf, rel: pgRelative, rate: pgRate, fc: pgForecast, fund: pgFund }[P.tab] || pgSummary)(ctx); }
     catch (e) { out = `<div class="dn finEmpty">${L('Could not draw this page', '無法顯示此頁')}: ${esc(String(e.message || e))}</div>`; }
-    out += `<div class="mut small finSrc">${L('Source', '來源')}: ${esc(D.src || 'Yahoo Finance')} · ${L('A model estimate for research only, not financial advice. Results depend entirely on the assumptions.', '模型估算，只供研究，並非投資建議。結果完全取決於假設。')}</div>`;
+    out += `<div class="mut small finSrc">${L('Source', '來源')}: ${esc(window.I18N ? I18N.t(D.src || 'Yahoo Finance') : (D.src || 'Yahoo Finance'))} · ${L('A model estimate for research only, not financial advice. Results depend entirely on the assumptions.', '模型估算，只供研究，並非投資建議。結果完全取決於假設。')}</div>`;
     const keep = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.k : null;
     $v('#valBody').innerHTML = out;
     if (keep) { const i = $v(`#valBody input[data-k="${keep}"]`); if (i) i.focus(); }

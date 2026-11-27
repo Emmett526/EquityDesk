@@ -1,21 +1,17 @@
 'use strict';
 // market data (main process)
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) EquityDesk/1.0';
-const RANGES = {   // range -> [yahoo range, interval, unused]
-  '1D': ['1d', '5m', '5min'], '5D': ['5d', '15m', '15min'], '1M': ['1mo', '1h', '1hour'],
-  '3M': ['3mo', '1d', 'eod'], '6M': ['6mo', '1d', 'eod'], '1Y': ['1y', '1d', 'eod'],
-  '5Y': ['5y', '1wk', 'eod']
-};
 const DAYS = { '1D': 1, '5D': 5, '1M': 31, '3M': 92, '6M': 183, '1Y': 366, '5Y': 1830 };
-// intervals: [yahoo interval, seconds, fmp kind, merge, max range]
-const IVS = { '1m': ['1m', 60, '1min', 1, '5D'], '2m': ['2m', 120, null, 1, '1M'], '5m': ['5m', 300, '5min', 1, '1M'], '15m': ['15m', 900, '15min', 1, '1M'], '30m': ['30m', 1800, '30min', 1, '1M'],
-  '1h': ['60m', 3600, '1hour', 1, '1Y'], '2h': ['60m', 7200, '1hour', 2, '1Y'], '4h': ['60m', 14400, '4hour', 4, '1Y'], 'D': ['1d', 86400, 'eod', 1, '5Y'], 'W': ['1wk', 604800, 'eod', 1, '5Y'], 'M': ['1mo', 2592000, 'eod', 1, '5Y'] };
+// intervals: [yahoo interval, seconds, merge, max range]
+const IVS = { '1m': ['1m', 60, 1, '5D'], '2m': ['2m', 120, 1, '1M'], '5m': ['5m', 300, 1, '1M'], '15m': ['15m', 900, 1, '1M'], '30m': ['30m', 1800, 1, '1M'],
+  '1h': ['60m', 3600, 1, '1Y'], '2h': ['60m', 7200, 2, '1Y'], '4h': ['60m', 14400, 4, '1Y'], 'D': ['1d', 86400, 1, '5Y'], 'W': ['1wk', 604800, 1, '5Y'], 'M': ['1mo', 2592000, 1, '5Y'] };
+const YR = { '1D': '1d', '5D': '5d', '1M': '1mo', '3M': '3mo', '6M': '6mo', '1Y': '1y', '5Y': '5y' };
 const RANGE_ORDER = ['1D', '5D', '1M', '3M', '6M', '1Y', '5Y'];
 const AUTO_IV = { '1D': '5m', '5D': '15m', '1M': '1h', '3M': 'D', '6M': 'D', '1Y': 'D', '5Y': 'W' };
 // range limit per interval
 function plan(range, iv) {
-  if (!RANGES[range]) range = '6M'; if (!iv || iv === 'auto' || !IVS[iv]) iv = AUTO_IV[range];
-  if (RANGE_ORDER.indexOf(range) > RANGE_ORDER.indexOf(IVS[iv][4])) range = IVS[iv][4];
+  if (!YR[range]) range = '6M'; if (!iv || iv === 'auto' || !IVS[iv]) iv = AUTO_IV[range];
+  if (RANGE_ORDER.indexOf(range) > RANGE_ORDER.indexOf(IVS[iv][3])) range = IVS[iv][3];
   return { range, iv };
 }
 // merge bars (2h / 4h)
@@ -24,7 +20,6 @@ function merge(bars, n) {
   for (const b of bars) { const d = Math.floor(b.time / 86400); if (!cur || k >= n || d !== day) { cur = { ...b }; out.push(cur); k = 0; day = d; } else { cur.high = Math.max(cur.high, b.high); cur.low = Math.min(cur.low, b.low); cur.close = b.close; cur.volume += b.volume; } k++; }
   return out;
 }
-const YR = { '1D': '1d', '5D': '5d', '1M': '1mo', '3M': '3mo', '6M': '6mo', '1Y': '1y', '5Y': '5y' };
 
 async function getJson(url, timeoutMs = 12000) {
   const ctl = new AbortController();
@@ -65,17 +60,23 @@ async function yahooBars(sym, rg, iv, more) {
     out.push({ time: t, open: q.open[i], high: q.high[i], low: q.low[i], close: q.close[i], volume: q.volume[i] || 0 });
   });
   if (!out.length) throw new Error('empty series');
-  return merge(out, IVS[iv][3]);
+  return merge(out, IVS[iv][2]);
 }
 
 // bid / ask (cookie + crumb)
-let crumb = null;
-async function yahooCrumb(force) {
-  if (crumb && !force && Date.now() - crumb.at < 3600e3) return crumb;
-  const r1 = await fetch('https://fc.yahoo.com', { headers: { 'User-Agent': UA }, redirect: 'manual' }).catch(() => null);
+let crumb = null, crumbP = null;
+// one crumb request at a time
+function yahooCrumb(force) {
+  if (crumb && !force && Date.now() - crumb.at < 3600e3) return Promise.resolve(crumb);
+  if (!crumbP) crumbP = newCrumb().finally(() => { crumbP = null; });
+  return crumbP;
+}
+const T12 = () => AbortSignal.timeout(12000);
+async function newCrumb() {
+  const r1 = await fetch('https://fc.yahoo.com', { headers: { 'User-Agent': UA }, redirect: 'manual', signal: T12() }).catch(() => null);
   const set = r1 && (r1.headers.getSetCookie ? r1.headers.getSetCookie() : [r1.headers.get('set-cookie')]).filter(Boolean);
   const cookie = (set || []).map(c => c.split(';')[0]).join('; ');
-  const r2 = await fetch('https://query2.finance.yahoo.com/v1/test/getcrumb', { headers: { 'User-Agent': UA, Cookie: cookie } });
+  const r2 = await fetch('https://query2.finance.yahoo.com/v1/test/getcrumb', { headers: { 'User-Agent': UA, Cookie: cookie }, signal: T12() });
   const c = (await r2.text()).trim();
   if (!r2.ok || !c || c.length > 40 || /[<{]/.test(c)) throw new Error('Yahoo crumb unavailable');
   crumb = { cookie, crumb: c, at: Date.now() }; return crumb;
@@ -83,7 +84,7 @@ async function yahooCrumb(force) {
 async function yahooBook(sym) {
   for (const force of [false, true]) {
     const c = await yahooCrumb(force);
-    const r = await fetch(`https://query2.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(sym)}&crumb=${encodeURIComponent(c.crumb)}`, { headers: { 'User-Agent': UA, Cookie: c.cookie, Accept: 'application/json' } });
+    const r = await fetch(`https://query2.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(sym)}&crumb=${encodeURIComponent(c.crumb)}`, { headers: { 'User-Agent': UA, Cookie: c.cookie, Accept: 'application/json' }, signal: T12() });
     if (r.status === 401 || r.status === 403) continue;
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const q = ((await r.json()).quoteResponse || {}).result || [];
@@ -112,14 +113,14 @@ function mockBars(sym, n, step) { let x = mockSeed(sym), p = 50 + (x % 400); con
 async function pool(items, n, fn) { const out = new Array(items.length); let i = 0;
   await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => { while (i < items.length) { const k = i++; out[k] = await fn(items[k]); } })); return out; }
 const MAX_SYMS = 500;
-async function quotes(symbols, settings) {
+async function quotes(symbols) {
   if (process.env.EQUITY_MOCK) return symbols.map(clean).filter(Boolean).map(s => { const b = mockBars(s, 160, 86400), l = b[b.length - 1], pr = b[b.length - 2].close; return { symbol: s, price: l.close, prev: pr, chg: l.close - pr, pct: (l.close / pr - 1) * 100, high: l.high, low: l.low, vol: l.volume, src: 'Mock', time: Date.now() }; });
   const syms = [...new Set(symbols.map(clean).filter(Boolean))].slice(0, MAX_SYMS);
   const res = await pool(syms, 12, s => yahooQuote(s)
     .catch(e => ({ symbol: s, error: String(e.message || e) })));
   return res;
 }
-async function bars(symbol, range, settings, interval, more) {
+async function bars(symbol, range, interval, more) {
   const s = clean(symbol), { range: rg, iv } = plan(range, interval);
   if (process.env.EQUITY_MOCK) { const step = IVS[iv][1], n = Math.max(20, Math.min(400, Math.round(step >= 86400 ? DAYS[rg] * 86400 * 0.69 / step : DAYS[rg] * 23400 / step))); return { symbol: s, range: rg, iv, more: !!more, bars: mockBars(s, more ? Math.min(2000, n * 4) : n, step) }; }
   const data = await yahooBars(s, rg, iv, more);
@@ -138,14 +139,14 @@ async function tick(symbol) {
 async function book(symbol, settings, opts = {}) {
   const s = clean(symbol);
   if (process.env.EQUITY_MOCK) {   // mock depth
-    const mb = mockBars(s, 160, 86400), b = mb[mb.length - 1], tick = b.close > 100 ? 0.01 : 0.01, mid = Math.round(b.close * 100) / 100;
+    const mb = mockBars(s, 160, 86400), b = mb[mb.length - 1], tick = 0.01, mid = Math.round(b.close * 100) / 100;
     let x = mockSeed(s) + Math.floor(Date.now() / 3000); const rnd = () => (x = (x * 1664525 + 1013904223) >>> 0) / 4294967296;
     const bids = [], asks = []; for (let i = 0; i < 12; i++) { bids.push([+(mid - tick * (i + 1)).toFixed(2), Math.round(100 + rnd() * 2400)]); asks.push([+(mid + tick * (i + 1)).toFixed(2), Math.round(100 + rnd() * 2400)]); }
     return { symbol: s, bid: bids[0][0], ask: asks[0][0], bidSize: bids[0][1], askSize: asks[0][1], last: mid, levels: opts.depth ? { bids, asks } : null, time: Date.now(), src: opts.depth ? 'Mock depth' : 'Mock L1' };
   }
   let l1, depthErr = '';
   try { l1 = await yahooBook(s); }
-  catch (e) { const q = (await quotes([s], settings))[0] || {}; l1 = { symbol: s, bid: null, ask: null, last: q.price ?? null, levels: null, time: q.time || Date.now(), src: q.src || '', error: 'Bid/ask unavailable: ' + (e.message || e) }; }
+  catch (e) { const q = (await quotes([s]))[0] || {}; l1 = { symbol: s, bid: null, ask: null, last: q.price ?? null, levels: null, time: q.time || Date.now(), src: q.src || '', error: 'Bid/ask unavailable: ' + (e.message || e) }; }
   if (settings.ibkrDepth && opts.depth) {
     // US: exchange feed first, broker fallback
     const us = !/\.[A-Z]{1,2}$/.test(s) && !s.startsWith('^'), ex = l1.exch || '', nyse = /^(NYQ|NYSE)$/.test(ex), tries = [], errs = [];
@@ -196,7 +197,7 @@ async function zhName(sym) { const v = await zhInfo(sym); return v && v.name || 
 // ---- watchlist stats ----
 const statCache = new Map();   // cache
 async function yJson(url, retry = true) {
-  const c = await yahooCrumb(); const r = await fetch(url + (url.includes('?') ? '&' : '?') + 'crumb=' + encodeURIComponent(c.crumb), { headers: { 'User-Agent': UA, Cookie: c.cookie, Accept: 'application/json' } });
+  const c = await yahooCrumb(); const r = await fetch(url + (url.includes('?') ? '&' : '?') + 'crumb=' + encodeURIComponent(c.crumb), { headers: { 'User-Agent': UA, Cookie: c.cookie, Accept: 'application/json' }, signal: T12() });
   if (r.status === 401 && retry) { await yahooCrumb(true); return yJson(url, false); }
   if (!r.ok) throw new Error('HTTP ' + r.status); return r.json();
 }
@@ -221,7 +222,7 @@ async function oneStat(s, spy) {
     yJson(`https://query2.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(s)}`).then(j => j.quoteResponse.result[0]),
     yJson(`https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(s)}?modules=summaryDetail,defaultKeyStatistics`).then(j => j.quoteSummary.result[0]),
     yJson(`https://query2.finance.yahoo.com/v7/finance/options/${encodeURIComponent(s)}`).then(j => j.optionChain.result[0]),
-    yahooBars(s, '1Y')]);
+    yahooBars(s, '1Y', 'D')]);
   if (q.status === 'fulfilled' && q.value) { const v = q.value; Object.assign(out, { name: v.shortName || v.longName || '', currency: v.currency, price: num(v.regularMarketPrice), pe: num(v.trailingPE), fpe: num(v.forwardPE), eps: num(v.epsTrailingTwelveMonths), feps: num(v.epsForward),
     mcap: num(v.marketCap), div: num(v.trailingAnnualDividendYield) != null ? num(v.trailingAnnualDividendYield) * 100 : null, hi52: num(v.fiftyTwoWeekHigh), lo52: num(v.fiftyTwoWeekLow), pb: num(v.priceToBook), avgVol: num(v.averageDailyVolume3Month) }); out.src.push('Yahoo quote'); }
   if (sum.status === 'fulfilled' && sum.value) { const d = sum.value.summaryDetail || {}, k = sum.value.defaultKeyStatistics || {}; out.betaY = nc(d.beta) ?? nc(k.beta); out.peg = nc(k.pegRatio); out.short = nc(k.shortPercentOfFloat) != null ? nc(k.shortPercentOfFloat) * 100 : null; if (out.pe == null) out.pe = nc(d.trailingPE); }
@@ -245,7 +246,7 @@ async function stats(symbols, opts = {}) {
   if (process.env.EQUITY_MOCK) return syms.map(s => { const x = mockSeed(s), b = mockBars(s, 160, 86400), p = b[b.length - 1].close, r = k => ((x >> k) % 1000) / 1000, hv = 0.2 + r(3) * 0.4, g = callGreeks(p, Math.round(p), 30 / 365, hv);
     return { symbol: s, name: s + ' Inc (mock)', currency: 'USD', price: p, pe: 10 + r(1) * 40, fpe: 9 + r(2) * 30, eps: p / (10 + r(1) * 40), mcap: 1e9 * (5 + r(4) * 2000), div: r(5) * 3, hi52: Math.max(...b.map(q => q.high)), lo52: Math.min(...b.map(q => q.low)),
       pb: 1 + r(6) * 10, beta: 0.6 + r(7) * 1.2, alpha: (r(8) - 0.5) * 30, hv: hv, iv: hv * 110, delta: g.delta, theta: g.theta, optStrike: Math.round(p), optExp: Date.now() / 1000 + 30 * 86400, optSrc: 'mock', ytd: (r(9) - 0.4) * 40, peg: 1 + r(10) * 2, short: r(11) * 8, src: ['Mock'] }; });
-  let spy = null; try { spy = await yahooBars('SPY', '1Y'); } catch (e) {}
+  let spy = null; try { spy = await yahooBars('SPY', '1Y', 'D'); } catch (e) {}
   return pool(syms, 6, async s => { let c = statCache.get(s); if (c && Date.now() - c.t >= 30 * 60e3) c = null;
     try { let v = c && c.v; if (!v) { v = await oneStat(s, spy); statCache.set(s, { t: Date.now(), v }); } return zh ? await withZh(v) : v; } catch (e) { return { symbol: s, error: String(e.message || e) }; } });
 }
@@ -260,4 +261,39 @@ async function fx(pairs) {
   return out;
 }
 
-module.exports = { zhInfo, zhName, CJK, tick, plan, IVS, quotes, bars, book, clean, RANGES, stats, fx, callGreeks, testFmp, yJson, UA };
+// option chains (GEX, max pain, OI walls, expected move)
+const optCache = new Map();
+const optRow = x => ({ k: num(x.strike), oi: num(x.openInterest) || 0, v: num(x.volume) || 0, iv: num(x.impliedVolatility) || 0, bid: num(x.bid), ask: num(x.ask), last: num(x.lastPrice) });
+function mockChain(sym, spot) {
+  let x = mockSeed(sym + 'opt'); const rnd = () => (x = (x * 1664525 + 1013904223) >>> 0) / 4294967296, now = Math.floor(Date.now() / 1000), day = 86400, exps = [];
+  const S = spot > 0 ? spot : 50 + (mockSeed(sym) % 400), st = S > 500 ? 5 : S > 100 ? 2.5 : 1, base = Math.round(S / st) * st;
+  for (const d of [1, 3, 8, 15, 22, 29, 45, 60]) {
+    const e = Math.floor((now + d * day) / day) * day, calls = [], puts = [], w = 1 / Math.sqrt(d);
+    for (let k = -25; k <= 25; k++) { const K = +(base + k * st).toFixed(2); if (K <= 0) continue; const m = Math.log(K / S), iv = 0.22 + 0.25 * m * m * 10 - 0.08 * m, near = Math.exp(-k * k / 120);
+      const oiC = Math.round((800 + rnd() * 9000) * near * (k > 0 ? 1.4 : 0.7) * w * (k % 4 === 0 ? 2.5 : 1)), oiP = Math.round((800 + rnd() * 9000) * near * (k < 0 ? 1.5 : 0.6) * w * (k % 5 === 0 ? 2.5 : 1));
+      const T = d / 365, sd = S * iv * Math.sqrt(T), c = Math.max(S - K, 0) + sd * 0.4 * Math.exp(-m * m / (2 * iv * iv * T)), pp = Math.max(K - S, 0) + sd * 0.4 * Math.exp(-m * m / (2 * iv * iv * T));
+      calls.push({ k: K, oi: oiC, v: Math.round(oiC * rnd() * 0.5), iv, bid: c * 0.98, ask: c * 1.02, last: c }); puts.push({ k: K, oi: oiP, v: Math.round(oiP * rnd() * 0.5), iv: iv + 0.02, bid: pp * 0.98, ask: pp * 1.02, last: pp }); }
+    exps.push({ exp: e, calls, puts }); }
+  return { symbol: sym, spot: S, at: now, mock: true, exps };
+}
+// cached 5 min; force skips the cache
+function options(symbol, days, spot, force) {
+  const s = clean(symbol), d = Math.max(1, Math.min(120, +days || 60));
+  if (process.env.EQUITY_MOCK) return Promise.resolve(mockChain(s, +spot));
+  const key = s + '|' + d, c = optCache.get(key); if (c && !force && Date.now() - c.t < 5 * 60e3) return c.p;
+  const p = loadChain(s, d, spot); optCache.set(key, { t: Date.now(), p }); p.catch(() => { if (optCache.get(key) && optCache.get(key).p === p) optCache.delete(key); });
+  return p;
+}
+async function loadChain(s, d, spot) {
+  const url = `https://query2.finance.yahoo.com/v7/finance/options/${encodeURIComponent(s)}`;
+  const first = (await yJson(url)).optionChain.result[0];
+  if (!first || !(first.expirationDates || []).length) throw new Error('No options data for ' + s + ' (Yahoo lists options for US symbols only)');
+  const now = Date.now() / 1000, want = first.expirationDates.filter(e => e + 86400 > now && e - now <= d * 86400).slice(0, 12);
+  if (!want.length) want.push(first.expirationDates[0]);
+  const chains = await pool(want, 4, async e => { try { const o = first.options && first.options[0] && first.options[0].expirationDate === e ? first : (await yJson(url + '?date=' + e)).optionChain.result[0];
+    const ch = (o.options || [])[0] || {}; return { exp: e, calls: (ch.calls || []).map(optRow).filter(x => x.k), puts: (ch.puts || []).map(optRow).filter(x => x.k) }; } catch (er) { return null; } });
+  const q = first.quote || {}, v = { symbol: s, spot: num(q.regularMarketPrice) || +spot || null, at: Math.floor(now), exps: chains.filter(x => x && (x.calls.length || x.puts.length)) };
+  if (!v.exps.length) throw new Error('No options data for ' + s);
+  return v;
+}
+module.exports = { zhInfo, options, zhName, tick, quotes, bars, book, clean, stats, fx, testFmp, yJson, UA };

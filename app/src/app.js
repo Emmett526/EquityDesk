@@ -33,6 +33,9 @@ function go(v, noHist) {
 $$('#fkeys button[data-v]').forEach(b => b.onclick = () => go(b.dataset.v));
 $$('.setTabs button[data-go]').forEach(b => b.onclick = () => go(b.dataset.go));
 
+// option chains (main process caches 5 min; force = fresh)
+function optChain(sym, spot, force) { return api.options(sym, 60, spot, !!force).then(r => r && !r.error ? r : { error: (r && r.error) || 'No options data' }).catch(e => ({ error: String(e.message || e) })); }
+
 // FIN / VAL follow chart
 function followScreens(sym) { if (typeof FinScreen !== 'undefined') FinScreen.follow(sym); if (typeof ValScreen !== 'undefined') ValScreen.follow(sym); }
 
@@ -79,12 +82,14 @@ async function runCmd(raw) {
   if (w.length === 1 && w[0] === 'RESETUI') return resetSkin();
   if (w.length === 1 && CMD_VIEWS[w[0]]) return go(CMD_VIEWS[w[0]]);
   if (w.length === 1 && (w[0] === 'GP' || w[0] === 'BOOK')) { go('gp'); return focusPanel(w[0] === 'GP' ? 'chart' : 'book'); }
+  if (w.length === 1 && ['OPT', 'GEX', 'OMON', 'OPTIONS'].includes(w[0])) { go('gp'); return focusPanel('opt'); }
   if (w.length === 1 && RG.includes(w[0])) { go('gp'); const c = activeChart() || focusPanel('chart').inst; return c.setRange(w[0]); }
   if (!w.length && !sector) return;
   const tk = w[0] || ''; if (!tk) return;
   const sym = resolve(tk, sector), fn = w.slice(1), r = fn.find(x => RG.includes(x));
   go('gp');
   if (fn.some(x => ['BOOK', 'DEPTH', 'MBO', 'MBP', 'DOM'].includes(x))) { const p = focusPanel('book'); return p.inst.setSym(sym); }
+  if (fn.some(x => ['OPT', 'GEX', 'OMON', 'OPTIONS'].includes(x))) { const o = focusPanel('opt').inst; o.p.mode = 'sym'; o.p.sym = sym; o.q('.oMode').value = 'sym'; o.q('.oSym').value = sym; o.q('.oSym').style.display = ''; saveWs(); return o.load(); }
   const c = (activeChart() || focusPanel('chart').inst);
   c.load(sym, fn.includes('GIP') ? '1D' : r || null);
 }
@@ -521,7 +526,7 @@ class ChartPanel {
     const p = this.p; sym = clean(sym || p.sym); if (!sym) return; const changed = sym !== p.sym || first;
     p.sym = sym; if (rg) p.rg = rg; this.q('.psym').value = sym; this.q('.prg').querySelectorAll('.rb').forEach(b => b.classList.toggle('on', b.dataset.r === p.rg));
     saveWs(); relayoutTitles(); this.q('.pinfo').textContent = 'Loading…';
-    if (activeChart() === this) { allPanels('book').filter(b => b.p.follow && b.p.sym !== sym).forEach(b => b.setSym(sym)); allPanels('news').forEach(n => n.follow(sym)); followScreens(sym); }
+    if (activeChart() === this) { allPanels('book').filter(b => b.p.follow && b.p.sym !== sym).forEach(b => b.setSym(sym)); allPanels('news').forEach(n => n.follow(sym)); allPanels('opt').forEach(n => n.follow(sym)); followScreens(sym); }
     this.q('.piv').value = p.iv; this.stopLive();
     const tok = ++this.tok, sec = ivSec(p.iv);
     const r = sec ? { bars: tickStore[sym + '|' + p.iv] || (tickStore[sym + '|' + p.iv] = []) } : await api.bars(sym, p.rg, p.iv, true); if (tok !== this.tok) return;
@@ -926,6 +931,66 @@ class NewsPanel {
   destroy() { clearInterval(this.timer); }
 }
 
+// ---- options panel (GEX, max pain, OI, expected move, P/C) ----
+class OptPanel {
+  constructor(p) {
+    this.p = p; p.mode = p.mode || 'follow'; p.sym = p.sym || ''; p.exp = p.exp || '30'; this.tok = 0;
+    const e = this.el = el('div', 'panel optp');
+    e.innerHTML = `<div class="pbar"><select class="oMode" title="Which symbol"><option value="follow">Active chart</option><option value="sym">Symbol…</option></select>
+      <input class="oSym" size="8" placeholder="Ticker" spellcheck="false"><select class="oExp" title="Expirations"></select><button class="x oRef" title="Refresh now">↻</button><span class="oInfo mut small"></span></div>
+      <div class="oBody"><div class="oSum"></div><div class="oGrid"></div><div class="mut small oNote">From Yahoo option chains (US stocks and ETFs), refreshed every 5 minutes. GEX = dealer gamma exposure in dollars per 1% move, assuming dealers are long calls and short puts. Positive net GEX tends to calm moves, negative tends to speed them up. Research only.</div></div>`;
+    this.q = s => e.querySelector(s);
+    this.q('.oMode').value = p.mode; this.q('.oSym').value = p.sym; this.q('.oSym').style.display = p.mode === 'sym' ? '' : 'none';
+    this.q('.oMode').onchange = ev => { p.mode = ev.target.value; this.q('.oSym').style.display = p.mode === 'sym' ? '' : 'none'; if (p.mode === 'sym') this.q('.oSym').focus(); saveWs(); relayoutTitles(); this.load(); };
+    this.q('.oSym').onkeydown = ev => { if (ev.key === 'Enter') { ev.stopPropagation(); p.sym = clean(ev.target.value); saveWs(); relayoutTitles(); this.load(); } };
+    this.q('.oExp').onchange = ev => { p.exp = ev.target.value; saveWs(); this.draw(); };
+    this.q('.oRef').onclick = () => this.load(true);
+    this.expOpts(); this.load();
+    this.timer = setInterval(() => { if (!document.hidden && this.el.offsetParent) this.load(true); }, 5 * 60e3);
+  }
+  sym() { return this.p.mode === 'sym' ? this.p.sym : (activeChart() ? activeChart().p.sym : 'SPY'); }
+  title() { return 'OPT ' + (this.sym() || ''); }
+  expOpts() {
+    const base = [['near', 'Nearest expiry'], ['7', 'Next 7 days'], ['30', 'Next 30 days'], ['60', 'Next 60 days']], now = Date.now() / 1000;
+    const one = (this.o && this.o.exps || []).filter(x => x.exp + 86400 > now).map(x => ['e:' + x.exp, new Date((x.exp + 43200) * 1000).toISOString().slice(0, 10)]);
+    this.q('.oExp').innerHTML = base.concat(one).map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join('');
+    if (![...this.q('.oExp').options].some(o => o.value === this.p.exp)) this.p.exp = '30'; this.q('.oExp').value = this.p.exp;
+  }
+  async load(force) {
+    const sym = this.sym(), tok = ++this.tok; if (!sym) return; if (sym !== this.lastSym) { this.o = null; this.draw(); } this.lastSym = sym; relayoutTitles();
+    this.q('.oInfo').textContent = 'Loading…';
+    const ch = activeChart(), spot = ch && ch.p.sym === sym && ch.bars.length ? ch.bars[ch.bars.length - 1].close : (wlQuotes[sym] || {}).price;
+    const o = await optChain(sym, spot || 0, force); if (tok !== this.tok) return;
+    if (!o || o.error) { this.o = null; this.q('.oInfo').textContent = ''; this.q('.oSum').innerHTML = `<div class="dn small pad">${esc((o && o.error) || 'No options data')}</div>`; this.q('.oGrid').innerHTML = ''; return; }
+    this.o = o; this.spot = spot || o.spot; this.q('.oInfo').textContent = (o.mock ? 'Mock data' : 'Yahoo') + ' · ' + fmtLocal(o.at * 1000); this.expOpts(); this.draw();
+  }
+  draw() {
+    const sum = this.q('.oSum'), grid = this.q('.oGrid'); if (!this.o) { sum.innerHTML = grid.innerHTML = ''; return; }
+    const r = Opt.compute(this.o, this.spot, this.p.exp); if (!r) { sum.innerHTML = '<div class="mut small pad">No live expirations</div>'; grid.innerHTML = ''; return; }
+    const money = v => { const a = Math.abs(v), sg = v < 0 ? '−' : '+'; return sg + (a >= 1e9 ? (a / 1e9).toFixed(2) + 'B' : a >= 1e6 ? (a / 1e6).toFixed(1) + 'M' : a >= 1e3 ? (a / 1e3).toFixed(0) + 'K' : a.toFixed(0)); };
+    const k = v => v == null ? '—' : f2(v), S = r.S;
+    const box = (l, v, c, sub) => `<div class="oBox"><small>${l}</small><b class="${c || ''}">${v}</b>${sub ? `<i class="mut">${sub}</i>` : ''}</div>`;
+    sum.innerHTML = box('Price', f2(S)) + box('Net GEX', money(r.net), cls(r.net), r.net >= 0 ? 'Calmer moves' : 'Bigger moves') + box('Call wall', k(r.cw), 'up') + box('Put wall', k(r.pw), 'dn') +
+      box('Zero gamma', k(r.zg), 'yel') + box('Max pain', k(r.mp), 'pur') + box('Expected move', r.mv ? '±' + f2(r.mv) : '—', 'blu', r.mv ? (r.mv / S * 100).toFixed(1) + '% · ' + new Date((r.mvExp + 43200) * 1000).toISOString().slice(5, 10) : '') +
+      box('P/C open interest', r.pcOI == null ? '—' : r.pcOI.toFixed(2), r.pcOI > 1 ? 'dn' : 'up') + box('P/C volume', r.pcV == null ? '—' : r.pcV.toFixed(2), r.pcV > 1 ? 'dn' : 'up') + box('ATM IV', r.atm ? (r.atm * 100).toFixed(1) + '%' : '—');
+    // strikes near the price
+    let rows = r.rows.filter(x => Math.abs(x.k / S - 1) <= 0.12 && (x.coi || x.poi)); if (rows.length > 50) { rows.sort((a, b) => Math.abs(a.k - S) - Math.abs(b.k - S)); rows = rows.slice(0, 50).sort((a, b) => a.k - b.k); }
+    rows = rows.reverse(); const gmax = Math.max(1, ...rows.map(x => Math.abs(x.g))), omax = Math.max(1, ...rows.map(x => Math.max(x.coi, x.poi)));
+    const atS = rows.reduce((a, x) => !a || Math.abs(x.k - S) < Math.abs(a.k - S) ? x : a, null), near = v => v != null && rows.reduce((a, x) => !a || Math.abs(x.k - v) < Math.abs(a.k - v) ? x : a, null);
+    const tag = new Map(); [[r.cw, 'Call wall', 'up'], [r.pw, 'Put wall', 'dn'], [r.zg, 'Zero gamma', 'yel'], [r.mp, 'Max pain', 'pur']].forEach(([v, t, c]) => { const x = near(v); if (x) (tag.get(x) || tag.set(x, []).get(x)).push(`<em class="${c}">${t}</em>`); });
+    const kv = v => v >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(1) + 'K' : String(Math.round(v));
+    grid.innerHTML = `<div class="oRow oHead"><span>Strike</span><span>GEX by strike</span><span>Open interest (puts | calls)</span><span>Levels</span></div>` + rows.map(x => {
+      const gw = Math.abs(x.g) / gmax * 50, g = x.g >= 0 ? `<i class="gp" style="left:50%;width:${gw}%"></i>` : `<i class="gn" style="left:${50 - gw}%;width:${gw}%"></i>`;
+      return `<div class="oRow${x === atS ? ' oSpot' : ''}" title="${esc(f2(x.k))} · GEX ${money(x.g)} · call OI ${kv(x.coi)} · put OI ${kv(x.poi)}"><span class="oK">${f2(x.k)}${x === atS ? ' ◀' : ''}</span>` +
+        `<span class="oBar">${g}<b class="${cls(x.g)} ${x.g >= 0 ? 'oL' : 'oR'}">${Math.abs(x.g) >= gmax * 0.15 ? money(x.g) : ''}</b></span>` +
+        `<span class="oBar oOI"><i class="pn" style="left:${50 - x.poi / omax * 50}%;width:${x.poi / omax * 50}%"></i><i class="cp" style="left:50%;width:${x.coi / omax * 50}%"></i></span><span class="oTag">${(tag.get(x) || []).join(' ')}</span></div>`;
+    }).join('');
+  }
+  refresh() {}
+  follow(sym) { if (this.p.mode === 'follow' && sym !== this.lastSym) this.load(); }
+  destroy() { clearInterval(this.timer); }
+}
+
 // language changed: reload
 window.addEventListener('eqlang', () => {
   allPanels('news').forEach(n => n.load(true)); if (typeof newsScr !== 'undefined' && newsScr) newsScr.load(true); drawDeskHome(); loadDeskHome();
@@ -1044,7 +1109,7 @@ ${rows.join('\n')}
 }
 
 // ---- workspace (panels) ----
-const KINDS = { chart: ChartPanel, book: BookPanel, monitor: MonitorPanel, watchlist: WatchPanel, news: NewsPanel, ai: AIPanel };
+const KINDS = { chart: ChartPanel, book: BookPanel, monitor: MonitorPanel, watchlist: WatchPanel, news: NewsPanel, ai: AIPanel, opt: OptPanel };
 let ws = null, panels = {}, lastChart = null, saveWsT = null, wsReady = false;
 const allPanels = kind => Object.values(panels).filter(x => x.p.kind === kind).map(x => x.inst);
 function activeChart() { const a = ws && ws.active(); if (a && panels[a] && panels[a].p.kind === 'chart') return panels[a].inst; return lastChart && panels[lastChart] ? panels[lastChart].inst : null; }
@@ -1068,9 +1133,9 @@ function ensureWorkspace() {
   if (ws) return;
   ws = Layout.create($('#ws'), {
     mount: id => panels[id].inst.el, title: id => panels[id] ? panels[id].inst.title() : id,
-    onActive: id => { const x = panels[id]; if (x && x.p.kind === 'chart') { lastChart = id; markTool(x.inst.draw.tool()); allPanels('book').filter(b => b.p.follow && b.p.sym !== x.inst.p.sym).forEach(b => b.setSym(x.inst.p.sym)); allPanels('news').forEach(n => n.follow(x.inst.p.sym)); followScreens(x.inst.p.sym); } saveWs(); },
+    onActive: id => { const x = panels[id]; if (x && x.p.kind === 'chart') { lastChart = id; markTool(x.inst.draw.tool()); allPanels('book').filter(b => b.p.follow && b.p.sym !== x.inst.p.sym).forEach(b => b.setSym(x.inst.p.sym)); allPanels('news').forEach(n => n.follow(x.inst.p.sym)); allPanels('opt').forEach(n => n.follow(x.inst.p.sym)); followScreens(x.inst.p.sym); } saveWs(); },
     onClose: id => { destroyPanel(id); saveWs(); },
-    kinds: [['chart', 'Chart'], ['book', 'Order book'], ['watchlist', 'Watchlist'], ['news', 'News'], ['monitor', 'Monitor'], ['ai', 'AI assistant']],
+    kinds: [['chart', 'Chart'], ['book', 'Order book'], ['watchlist', 'Watchlist'], ['news', 'News'], ['monitor', 'Monitor'], ['ai', 'AI assistant'], ['opt', 'Options']],
     kindOf: id => panels[id] ? panels[id].p.kind : 'chart',
     clone: id => { const s = panels[id] && panels[id].p; return makePanel(s ? cloneProps(s) : { kind: 'chart' }).p.id; },
     changeKind: (id, kind) => { const s = panels[id] && panels[id].p; if (!s || s.kind === kind) return null;

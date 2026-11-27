@@ -1,12 +1,13 @@
 {
   "name": "equity-desk",
   "productName": "Equity Desk",
-  "version": "1.1.0-beta.4",
+  "version": "1.1.0-beta.5",
   "author": "Emmett526",
   "description": "Bloomberg-style research terminal: dockable charts with drawings, custom Python/C indicators, order book (IBKR, Futu, Longbridge, Tiger, Schwab, Nasdaq TotalView / NYSE OpenBook via Databento), AI assistant and monitor. Research only, no trading.",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
+    "test": "node test/maths.test.js",
     "dist": "electron-packager . EquityDesk --platform=win32 --arch=x64 --out=dist --overwrite --asar"
   },
   "devDependencies": {

@@ -12,7 +12,9 @@ const file = n => path.join(dir(), n);
 const readJson = (n, d) => { try { return JSON.parse(fs.readFileSync(file(n), 'utf8')); } catch (e) { return d; } };
 let cached = null;   // settings cache
 let wlOwn = '';   // last watchlists.json write
-const writeJson = (n, v) => { fs.mkdirSync(dir(), { recursive: true }); const t = JSON.stringify(v, null, 2); if (n === 'watchlists.json') wlOwn = t; fs.writeFileSync(file(n), t); if (n === 'settings.json') cached = null; };
+// write to .tmp then rename, so a crash never leaves a half file
+const writeJson = (n, v) => { fs.mkdirSync(dir(), { recursive: true }); const t = JSON.stringify(v, null, 2); if (n === 'watchlists.json') wlOwn = t;
+  const f = file(n); try { fs.writeFileSync(f + '.tmp', t); fs.renameSync(f + '.tmp', f); } catch (e) { fs.writeFileSync(f, t); } if (n === 'settings.json') cached = null; };
 
 const PLAIN = { pythonPath: '', cCompiler: '', aiProvider: 'ollama', claudeModel: 'claude-opus-5-5', ollamaUrl: 'http://127.0.0.1:11434', ollamaModel: 'gemma4',
   ibHost: '127.0.0.1', ibPort: 4002, ibClientId: 37, depthSource: 'ibkr', ibVenue: 'SMART', futuHost: '127.0.0.1', futuPort: 11111,
@@ -55,7 +57,7 @@ let migrated = false;
 function settings() {   // with keys: never sent to the page
   if (!migrated) { migrated = true; try { migrate(); } catch (e) {} }
   if (cached) return Object.assign({}, cached);
-  const s = readJson('settings.json', {}), out = { provider: s.provider || 'fmp-first', refreshSec: s.refreshSec || 20, ibkrDepth: !!s.ibkrDepth };
+  const s = readJson('settings.json', {}), out = { refreshSec: s.refreshSec || 20, ibkrDepth: !!s.ibkrDepth };
   SECRETS.forEach(k => { out[k] = secret(s, k); });
   out.aiKeys = Object.fromEntries(AI_IDS.map(k => [k, out['ai_' + k]]));
   out.aiModels = Object.assign({}, s.aiModels); out.aiUrls = Object.assign({}, s.aiUrls);
@@ -65,15 +67,15 @@ function settings() {   // with keys: never sent to the page
   cached = out; return Object.assign({}, out);
 }
 function publicSettings() {
-  const s = settings(), out = { provider: s.provider, refreshSec: s.refreshSec, ibkrDepth: s.ibkrDepth, encrypted: canEncrypt(), aiModels: s.aiModels, aiUrls: s.aiUrls, clocks: s.clocks,
+  const s = settings(), out = { refreshSec: s.refreshSec, ibkrDepth: s.ibkrDepth, encrypted: canEncrypt(), aiModels: s.aiModels, aiUrls: s.aiUrls, clocks: s.clocks,
     has: Object.fromEntries(SECRETS.map(k => [k, !!s[k]])), sessionOnly: Object.keys(sessionSecrets), providers: ai.PROVIDERS, oaiDefaults: Object.fromEntries(AI_IDS.map(k => [k, ai.OAI[k].model])) };
   out.hasKey = out.has.fmpKey; out.hasAnthropicKey = out.has.anthropicKey; out.fmpUsage = finData.fmpUsage(dir());
   for (const k in PLAIN) out[k] = s[k]; return out;
 }
 
-ipcMain.handle('quotes', (_e, syms) => provider.quotes(Array.isArray(syms) ? syms.slice(0, 500) : [], settings()));
+ipcMain.handle('quotes', (_e, syms) => provider.quotes(Array.isArray(syms) ? syms.slice(0, 500) : []));
 ipcMain.handle('book', async (_e, sym, o) => { try { return await provider.book(String(sym), settings(), { depth: !!(o && o.depth) }); } catch (e) { return { error: scrub(e) }; } });
-ipcMain.handle('bars', async (_e, sym, range, iv, more) => { try { return await provider.bars(String(sym), String(range), settings(), iv ? String(iv) : 'auto', !!more); } catch (e) { return { error: scrub(e) }; } });
+ipcMain.handle('bars', async (_e, sym, range, iv, more) => { try { return await provider.bars(String(sym), String(range), iv ? String(iv) : 'auto', !!more); } catch (e) { return { error: scrub(e) }; } });
 ipcMain.handle('tick', async (_e, sym) => { try { return await provider.tick(String(sym)); } catch (e) { return { error: scrub(e) }; } });
 const isZh = () => (readJson('lang.json', {}) || {}).lang === 'zh-HK';   // Chinese mode
 const L = (en, zh) => (isZh() ? zh : en);   // dialog titles
@@ -87,6 +89,7 @@ ipcMain.handle('store:set', (_e, name, val) => { writeJson(String(name).replace(
 ipcMain.handle('news', async (_e, o) => { try { return await newsFor(o && typeof o === 'object' ? o : {}); } catch (e) { return { error: scrub(e) }; } });
 ipcMain.handle('open:url', (_e, u) => { u = String(u || ''); if (/^https?:\/\/[^\s"'<>]+$/i.test(u)) shell.openExternal(u); return true; });
 ipcMain.handle('fin', async (_e, sym) => { try { return await finData.fin(String(sym || '').slice(0, 30), settings(), { zh: isZh() }); } catch (e) { return { error: scrub(e).slice(0, 300) }; } });
+ipcMain.handle('options', async (_e, sym, days, spot, force) => { try { return await provider.options(String(sym), +days || 60, +spot || 0, !!force); } catch (e) { return { error: scrub(e) }; } });
 ipcMain.handle('stats', async (_e, syms) => { try { return await provider.stats(Array.isArray(syms) ? syms.map(String) : [], { zh: isZh() }); } catch (e) { return { error: scrub(e) }; } });
 ipcMain.handle('fx', async (_e, pairs) => { try { return await provider.fx(Array.isArray(pairs) ? pairs : []); } catch (e) { return {}; } });
 // watchlist import
@@ -141,7 +144,6 @@ ipcMain.handle('wl:export', async (_e, doc) => {
 ipcMain.handle('settings:get', () => publicSettings());
 ipcMain.handle('settings:set', (_e, p) => {
   const s = readJson('settings.json', {}); p = p && typeof p === 'object' ? p : {};
-  if (p.provider) s.provider = ['fmp-first', 'yahoo', 'fmp'].includes(p.provider) ? p.provider : 'fmp-first';
   if (p.refreshSec) s.refreshSec = Math.max(10, Math.min(300, +p.refreshSec || 20));
   if (typeof p.ibkrDepth === 'boolean') s.ibkrDepth = p.ibkrDepth;
   if (p.aiProvider && !ai.PROVIDERS.some(x => x[0] === p.aiProvider)) delete p.aiProvider;
@@ -210,9 +212,9 @@ async function runTool(name, a) {
       const levels = Object.fromEntries(Object.entries(dr).map(([k, l]) => [k, (l || []).filter(d => ['hline', 'hray', 'text', 'long', 'short'].includes(d.type)).map(d => ({ type: d.type, price: r4(+d.pts[0].p), text: d.text || undefined }))]).filter(x => x[1].length));
       const pf = readJson('profile.json', {}); return cap({ user: pf.done ? { name: pf.name, location: pf.loc, time_zone: pf.tz, primary_market: pf.market } : undefined, charts, monitor: ((wl.lists || []).find(l => l.id === wl.monitor) || (wl.lists || [])[0] || {}).syms || [], watchlists: (wl.lists || []).map(l => ({ name: l.name, symbols: l.syms })), picks: picks && (picks.picks || picks.ideas || picks), gate: picks && picks.gate, drawn_levels: levels, time: new Date().toISOString() });
     }
-    if (name === 'quotes') return cap((await provider.quotes(syms(a.symbols, 30), s)).map(q => ({ symbol: q.symbol, price: r4(q.price), chg: r4(q.chg), pct: r4(q.pct), high: r4(q.high), low: r4(q.low), vol: q.vol, currency: q.currency, src: q.src, time: q.time && new Date(q.time).toISOString(), error: q.error })));
+    if (name === 'quotes') return cap((await provider.quotes(syms(a.symbols, 30))).map(q => ({ symbol: q.symbol, price: r4(q.price), chg: r4(q.chg), pct: r4(q.pct), high: r4(q.high), low: r4(q.low), vol: q.vol, currency: q.currency, src: q.src, time: q.time && new Date(q.time).toISOString(), error: q.error })));
     if (name === 'bars') {
-      const sym = syms(a.symbol, 1)[0]; if (!sym) return 'symbol required'; const r = await provider.bars(sym, String(a.range || '6M').toUpperCase(), s, String(a.interval || 'auto'));
+      const sym = syms(a.symbol, 1)[0]; if (!sym) return 'symbol required'; const r = await provider.bars(sym, String(a.range || '6M').toUpperCase(), String(a.interval || 'auto'));
       const b = r.bars, cl = b.map(x => x.close), sma = n => cl.length >= n ? r4(cl.slice(-n).reduce((x, y) => x + y, 0) / n) : null; let g = 0, l = 0; for (let i = Math.max(1, cl.length - 14); i < cl.length; i++) { const d = cl[i] - cl[i - 1]; if (d > 0) g += d; else l -= d; }
       const tr = b.slice(-15).map((x, i, q) => i ? Math.max(x.high - x.low, Math.abs(x.high - q[i - 1].close), Math.abs(x.low - q[i - 1].close)) : null).filter(x => x != null);
       return cap({ symbol: sym, range: r.range, interval: r.iv, count: b.length, sma20: sma(20), sma50: sma(50), sma200: sma(200), rsi14: r4(l ? 100 - 100 / (1 + g / l) : 100), atr14: r4(tr.reduce((x, y) => x + y, 0) / (tr.length || 1)),
@@ -268,7 +270,6 @@ ipcMain.handle('desk:build', (_e, d) => {
     return { url: require('url').pathToFileURL(file('desk.html')).href, picks: d.picks };
   } catch (e) { return { error: scrub(e) }; }
 });
-ipcMain.handle('template', () => fs.readFileSync(path.join(__dirname, 'desk-template.html'), 'utf8'));
 // ---- custom indicators ----
 const wrap = f => async (_e, ...a) => { try { return await f(...a); } catch (e) { return { error: scrub(e).slice(0, 2000) }; } };
 ipcMain.handle('ind:list', () => ind.list());

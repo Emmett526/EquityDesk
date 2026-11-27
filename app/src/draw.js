@@ -323,7 +323,9 @@ window.Drawings = (() => {
     if (pending) { ctx.save(); try { drawOne(pending.d); } catch (e) {} ctx.restore(); }
     ctx.restore();
   }
-  function loop() { if (!alive) return; if (box && box.offsetParent) render(); requestAnimationFrame(loop); }
+  // repaint only while there is something to draw (plus one clear)
+  let drew = true;
+  function loop() { if (!alive) return; if (box && box.offsetParent) { const any = !!pending || (!G.hidden && list.length > 0); if (any || drew) render(); drew = any; } requestAnimationFrame(loop); }
 
   // ---- hit testing ----
   function distSeg(p, a, b) { const dx = b.x - a.x, dy = b.y - a.y, L = dx * dx + dy * dy; let t = L ? ((p.x - a.x) * dx + (p.y - a.y) * dy) / L : 0; t = Math.max(0, Math.min(1, t)); return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy); }

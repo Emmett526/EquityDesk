@@ -41,7 +41,7 @@ function hkCodes(sym) { const m = sym.match(/^0*(\d{1,5})\.HK$/); if (!m) return
 const cache = new Map();   // feed cache
 const ENT = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', '#39': "'" };
 const decode = s => String(s || '').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/<[^>]+>/g, ' ')
-  .replace(/&(#x[0-9a-f]+|#\d+|\w+);/gi, (m, e) => e[0] === '#' ? String.fromCodePoint(e[1].toLowerCase() === 'x' ? parseInt(e.slice(2), 16) : +e.slice(1)) : ENT[e.toLowerCase()] ?? m)
+  .replace(/&(#x[0-9a-f]+|#\d+|\w+);/gi, (m, e) => { if (e[0] !== '#') return ENT[e.toLowerCase()] ?? m; try { return String.fromCodePoint(e[1].toLowerCase() === 'x' ? parseInt(e.slice(2), 16) : +e.slice(1)); } catch (er) { return m; } })
   .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 const tagv = (x, t) => { const m = x.match(new RegExp(`<${t}(?:\\s[^>]*)?>([\\s\\S]*?)</${t}>`, 'i')); return m ? m[1] : ''; };
 const safeUrl = u => { u = decode(u); return /^https?:\/\/[^\s"'<>]+$/i.test(u) ? u : null; };

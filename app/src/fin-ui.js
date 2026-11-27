@@ -159,15 +159,18 @@ const FinScreen = (() => {
     return `<div class="finCard finNext"><b>Next earnings:</b> ${D.next.date ? esc(dt(D.next.date)) : '—'}${D.next.eps != null ? ` · EPS estimate <b>${num(D.next.eps)}</b>` : ''}${D.next.rev != null ? ` · Revenue estimate <b>${big(D.next.rev)}</b>` : ''}</div>` +
       repEst('Earnings per share', e.labels, e.rep, e.est, 'eps', e.fcFrom, P.per === 'annual' ? 'Yahoo has estimates for past quarters, so past fiscal years show reported only' : '') + repEst('Revenue', r.labels, r.rep, r.est, 'rev', r.fcFrom);
   }
+  // segment names in Chinese: whole name, else each part of "A and B" / "A & B" / "A, B"
+  function segT(n) { const I = window.I18N; if (!I || I.lang === 'en') return n; const t = I.t(n); if (t !== n) return t;
+    const parts = n.replace(/ Segment$| segment$/, '').split(/\s*(?:,| and | & )\s*/).filter(Boolean), tp = parts.map(x => I.t(x)); return parts.length > 1 && tp.every((x, i) => x !== parts[i]) ? tp.join('及') : n; }
   function segCard(title, list) {
     if (!list || !list.length) return `<div class="finCard"><div class="finH"><b>${esc(title)}</b></div><div class="mut small">${esc(D.segments.note || 'No segment data for this symbol.')}</div></div>`;
     const l = list[0], tot = l.data.reduce((s, x) => s + x[1], 0) || 1, C = ['var(--blu)', 'var(--amb)', 'var(--up)', '#c586ff', 'var(--yel)', '#ff5fd2', '#00e5ff', 'var(--dn)', 'var(--mut)'];
-    return `<div class="finCard"><div class="finH"><b>${esc(title)}</b><span class="mut small">Period: ${esc(l.year)}</span></div><div class="finStack">${l.data.map((x, i) => `<i style="width:${x[1] / tot * 100}%;background:${C[i % C.length]}" title="${esc(x[0])}"></i>`).join('')}</div>
-      <div class="finConv">${l.data.map((x, i) => `<div><span><i class="dot" style="background:${C[i % C.length]}"></i>${esc(x[0])}</span><i style="width:${x[1] / l.data[0][1] * 100}%;background:${C[i % C.length]}"></i><b>${big(x[1])} · ${pct(x[1] / tot * 100, 1)}</b></div>`).join('')}</div></div>`;
+    return `<div class="finCard"><div class="finH"><b>${esc(title)}</b><span class="mut small">Period: ${esc(l.year)}</span></div><div class="finStack">${l.data.map((x, i) => `<i style="width:${x[1] / tot * 100}%;background:${C[i % C.length]}" title="${esc(segT(x[0]))}"></i>`).join('')}</div>
+      <div class="finConv">${l.data.map((x, i) => `<div><span><i class="dot" style="background:${C[i % C.length]}"></i>${esc(segT(x[0]))}</span><i style="width:${x[1] / l.data[0][1] * 100}%;background:${C[i % C.length]}"></i><b>${big(x[1])} · ${pct(x[1] / tot * 100, 1)}</b></div>`).join('')}</div></div>`;
   }
   function segments() {
     const tbl = (title, list) => { if (!list || !list.length) return ''; const names = [...new Set(list.flatMap(y => y.data.map(x => x[0])))], yrs = list.slice().reverse();
-      return `<div class="finCard"><div class="finH"><b>${esc(title)} over time</b></div><table class="finT"><thead><tr><th>Currency: ${esc(D.finCcy)}</th>${yrs.map(y => `<th>${esc(y.year)}</th>`).join('')}</tr></thead><tbody>${names.map(n => `<tr><td>${esc(n)}</td>${yrs.map(y => { const v = (y.data.find(x => x[0] === n) || [])[1]; return `<td>${big(v)}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`; };
+      return `<div class="finCard"><div class="finH"><b>${esc(title)} over time</b></div><table class="finT"><thead><tr><th>Currency: ${esc(D.finCcy)}</th>${yrs.map(y => `<th>${esc(y.year)}</th>`).join('')}</tr></thead><tbody>${names.map(n => `<tr><td>${esc(segT(n))}</td>${yrs.map(y => { const v = (y.data.find(x => x[0] === n) || [])[1]; return `<td>${big(v)}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`; };
     return `<div class="finGrid2">${segCard('By source / business', D.segments.product)}${segCard('By country', D.segments.geo)}</div>` + tbl('By source / business', D.segments.product) + tbl('By country', D.segments.geo);
   }
   const PAGES = { ov: overview, st: statements, stat: statistics, est: estimates, div: dividends, earn: earnings, seg: segments };

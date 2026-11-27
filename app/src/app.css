@@ -269,3 +269,13 @@ table.finT{width:100%;border-collapse:collapse;font-size:12px}.finT th{color:var
 
 /* chart price header */
 .legend .row.qhead{gap:10px;font-size:13px;padding:1px 6px}.legend .qpx{font-size:20px;color:var(--hi)}
+
+/* options panel */
+.optp{display:flex;flex-direction:column;min-height:0}.optp .pbar{gap:5px}.oMode,.oSym,.oExp{background:var(--bg);color:var(--amb);border:1px solid var(--line2);font:inherit;font-size:12px;padding:1px 4px}
+.oBody{flex:1;overflow:auto;padding:6px 8px}.oSum{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:6px;margin-bottom:8px}
+.oBox{border:1px solid var(--line2);padding:4px 6px;display:flex;flex-direction:column;gap:1px}.oBox small{color:var(--mut,#888);font-size:10px}.oBox b{font-size:15px}.oBox i{font-style:normal;font-size:10px}
+.oBox .yel,.oRow .yel{color:var(--yel)}.oBox .pur,.oRow .pur{color:#c586ff}.oBox .blu{color:#4aa8ff}
+.oRow{display:grid;grid-template-columns:70px 1fr 1fr 150px;gap:8px;align-items:center;height:17px;font-size:11px}.oRow.oHead{color:var(--amb);height:20px;font-size:10px}.oRow.oSpot{background:rgba(255,176,0,.10)}
+.oK{text-align:right}.oBar{position:relative;height:12px;border-left:0}.oBar::before{content:'';position:absolute;left:50%;top:-3px;bottom:-3px;border-left:1px solid var(--line2)}
+.oBar i{position:absolute;top:1px;bottom:1px}.oBar .gp,.oBar .cp{background:#00d26a}.oBar .gn,.oBar .pn{background:#ff433d}.oBar .cp,.oBar .pn{opacity:.75}
+.oBar b{position:absolute;top:-2px;font-size:10px}.oBar b.oL{left:2px}.oBar b.oR{right:2px}.oTag{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.oTag em{font-style:normal}.oNote{margin-top:8px}
