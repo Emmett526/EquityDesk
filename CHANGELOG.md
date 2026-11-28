@@ -1,6 +1,35 @@
 # Changelog
 
-Versions follow [semantic versioning](https://semver.org). Beta releases are numbered `X.Y.Z-beta.N`.
+All notable changes to Equity Desk. Versions follow [semantic versioning](https://semver.org): beta releases are numbered `X.Y.Z-beta.N` and shown in the app as "Beta X.Y.Z". Downloads for every version are on the [Releases](https://github.com/Emmett526/EquityDesk/releases) page.
+
+## Beta 1.1.4 (1.1.0-beta.5) - 2026-11-27 (latest)
+
+- New Options panel in GP (GP > Add > Options, or type GEX, OPT or NVDA GEX), using Yahoo option chains for US stocks and ETFs (refreshed every 5 minutes). It follows the active chart like NEWS:
+  - Summary: net gamma exposure (GEX), call wall, put wall, zero gamma (gamma flip), max pain, expected move from the at-the-money straddle, put/call ratios (open interest and volume) and at-the-money implied volatility
+  - GEX and open interest (puts | calls) for each strike near the price, with the key levels marked
+  - Pick the expirations at the top: nearest, next 7 / 30 / 60 days, or one expiry date
+- Chart indicators are the same as in Beta 1.1.3
+- QUANTS stays a coming-soon placeholder
+- Traditional Chinese for text that comes from the data: Yahoo sectors and industries, countries and regions, common FMP segment names, the FIN source line and the VAL source
+- Fixes:
+  - Fixed: MON Alpha, HV % and YTD % were always empty with live data, and Beta always showed Yahoo's own figure. They are now worked out from a year of daily prices vs SPY, as the column tips say. The Δ call / Θ backup that uses HV works again
+  - Fixed: the Options panel's ↻ button and its 5-minute refresh now get fresh option chains (before, they could show the same data for up to 10 minutes)
+  - Fixed: the Options panel no longer shows the previous ticker's numbers while a new one loads
+  - Fixed: expected move no longer drops to half when the call or the put has no price; it uses implied volatility instead
+  - Fixed: one bad character in a news feed no longer hides that whole source
+  - Yahoo requests share one sign-in and give up after 12 seconds instead of hanging, so MON stats, FIN and Options fail less often at start-up
+  - Settings, keys and watchlists are saved safely: a crash or power cut while saving can no longer leave an empty file
+  - Charts without drawings no longer repaint every frame, so idle CPU use is lower
+  - Removed unused leftovers (the old provider-order setting and a few unused lines); added `npm test` for the options and DCF maths
+
+## Beta 1.1.3 (1.1.0-beta.4) - 2026-11-25
+
+- Charts show the price at the top left: last price, change and % change from the previous close (green / red), market open / pre-market / after hours / closed, and volume. Hovering a candle also shows its change from the candle before
+- Charts load earlier history (up to 10 years of daily bars, all weekly and monthly history, 2 years of hourly, about a month of 5- to 30-minute bars) and open on the range you picked, so scrolling left shows the previous days, weeks, months and years instead of stopping
+- Technicals rating shows in one place only, FIN > Estimates, next to the analyst rating (removed from VAL > Forecasts and VAL > Summary; the extra coloured scale is gone too)
+- FIN and VAL follow the active chart, like NEWS (Active chart / Symbol box at the top). Typing a ticker or a command like NVDA FA switches to Symbol
+- Traditional Chinese now covers the rest of FIN (Estimates, Statements, Statistics, Dividends, Earnings, Segments, dates and chart tips), the technicals indicator list and the last English bits in VAL and on charts
+- Empty branding/ folder for the future app logo (the app still uses the Electron icon)
 
 ## Beta 1.1.2 (1.1.0-beta.3) - 2026-11-24
 
