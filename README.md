@@ -42,7 +42,7 @@ Charts, monitor, financials, valuation, options and news in one window, with an 
 | 3 | **GP** | Dockable charts (split, resize and join panels), 1-second to monthly bars, TradingView-style drawings and 120+ built-in indicators. Panels for the order book, news, AI and **Options** |
 | 4 | **FIN** | Company financials: overview, statements, statistics, estimates, dividends, earnings and revenue segments, plus a technicals rating next to the analyst rating |
 | 5 | **VAL** | Valuation: DCF with bear / base / bull cases, relative valuation, discount rate (WACC), analyst forecasts and fundamentals with an economic moat check |
-| 6 | **QUANTS** | Coming soon |
+| 6 | **QUANTS** | Coming soon😋 |
 | 7 | **NEWS** | Market and per-ticker headlines from public feeds |
 | 8 | **SET** | Profile, language, data providers, AI assistant, API keys, and **Custom** (your own indicators and themes) |
 | 9 | **HELP** | Every command and key, all rebindable |
