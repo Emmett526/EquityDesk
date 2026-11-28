@@ -38,7 +38,6 @@ All notable changes to Equity Desk. Versions follow [semantic versioning](https:
 - New tab 6 QUANTS: coming soon
 - CUSTOM (custom indicators and custom UI) moved inside SET: SET has General and Custom at the top. Ctrl+Shift+8, or the commands CUSTOM, IND and UI, open it directly
 - Theme files can name the new tab QUANTS; saved tab orders from older versions still work (missing tabs are added at the end)
-- Source code comments rewritten as short labels by job
 
 ## Beta 1.1.1 (1.1.0-beta.2) - 2026-11-17
 
